@@ -5,8 +5,8 @@
   <title>Brewtopia Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ZXing UMD build (adds window.ZXing) -->
-  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+  <!-- Quagga2 (WASM build) -->
+  <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.js"></script>
 
   <style>
     :root {
@@ -106,9 +106,8 @@
       overflow: hidden;
       margin-top: 8px;
       border: 1px solid #30363d;
+      min-height: 200px;
     }
-
-    video { width: 100%; background: #000; }
 
     .scan-overlay {
       position: absolute;
@@ -169,7 +168,7 @@
       </div>
 
       <div id="receiveVideoWrapper" class="video-wrapper hidden">
-        <video id="receiveVideo" playsinline></video>
+        <!-- Quagga will inject a video element here -->
         <div class="scan-overlay"></div>
       </div>
 
@@ -197,11 +196,11 @@
       </div>
 
       <div id="useVideoWrapper" class="video-wrapper hidden">
-        <video id="useVideo" playsinline></video>
+        <!-- Quagga will inject a video element here -->
         <div class="scan-overlay"></div>
       </div>
 
-      <div style="margin-top:8px;">
+      <div style="margin-top:8px%;">
         <input id="useManualUpc" type="text" placeholder="Enter or scan UPC" />
         <button id="useManualBtn" class="btn secondary">Use 1</button>
       </div>
@@ -304,34 +303,16 @@ const STORAGE_KEY = "brewtopia_inventory_localcache_v1";
  *********************************************************/
 let inventory = {};        // full inventory
 let receiveScans = {};     // UPC → count (Receive Stock)
-let receiveReader = null;
-let receiveStream = null;
-let useReader = null;
-let useStream = null;
+
+let quaggaRunning = false;
+let quaggaMode = null;     // "receive" or "use"
+
+let lastScanCode = null;
+let lastScanTime = 0;
+const SCAN_COOLDOWN = 800; // ms
+
 let receiveTorchOn = false;
 let useTorchOn = false;
-let modalMode = "create";  // "create" or "edit"
-let modalUpcCurrent = null;
-
-/*********************************************************
- * ZXING HINTS: enable UPC/EAN/Code128/etc
- *********************************************************/
-let ZXING_HINTS = null;
-if (window.ZXing) {
-  ZXING_HINTS = new Map();
-  ZXING_HINTS.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-    ZXing.BarcodeFormat.UPC_A,
-    ZXing.BarcodeFormat.UPC_E,
-    ZXing.BarcodeFormat.EAN_13,
-    ZXing.BarcodeFormat.EAN_8,
-    ZXing.BarcodeFormat.CODE_128,
-    ZXing.BarcodeFormat.CODE_39,
-    ZXing.BarcodeFormat.CODE_93,
-    ZXing.BarcodeFormat.ITF,
-    ZXing.BarcodeFormat.QR_CODE,
-    ZXing.BarcodeFormat.DATA_MATRIX
-  ]);
-}
 
 /*********************************************************
  * ELEMENTS
@@ -356,7 +337,6 @@ const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
 const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
 const receiveFlashBtn = document.getElementById("receiveFlashBtn");
 const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
-const receiveVideo = document.getElementById("receiveVideo");
 const receiveManualUpc = document.getElementById("receiveManualUpc");
 const receiveManualBtn = document.getElementById("receiveManualBtn");
 const receiveList = document.getElementById("receiveList");
@@ -367,7 +347,6 @@ const startUseScanBtn = document.getElementById("startUseScanBtn");
 const stopUseScanBtn = document.getElementById("stopUseScanBtn");
 const useFlashBtn = document.getElementById("useFlashBtn");
 const useVideoWrapper = document.getElementById("useVideoWrapper");
-const useVideo = document.getElementById("useVideo");
 const useManualUpc = document.getElementById("useManualUpc");
 const useManualBtn = document.getElementById("useManualBtn");
 const useStatus = document.getElementById("useStatus");
@@ -415,12 +394,6 @@ function beep() {
 
 function vibrate() {
   if (navigator.vibrate) navigator.vibrate(70);
-}
-
-function stopStream(stream) {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-  }
 }
 
 /*********************************************************
@@ -474,8 +447,7 @@ function showSection(name) {
   useCard.classList.add("hidden");
   inventoryCard.classList.add("hidden");
 
-  stopReceiveScanner();
-  stopUseScanner();
+  stopQuagga();
 
   if (name === "receive") receiveCard.classList.remove("hidden");
   if (name === "use") useCard.classList.remove("hidden");
@@ -587,198 +559,176 @@ useManualBtn.addEventListener("click", () => {
 });
 
 /*********************************************************
- * CAMERA HELPERS
+ * QUAGGA2 — SHARED SCANNER
  *********************************************************/
-async function getRearCameraId() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const cams = devices.filter(d => d.kind === "videoinput");
-  let rear = cams.find(d => /back|rear|environment/i.test(d.label));
-  return rear ? rear.deviceId : cams[0]?.deviceId;
+function getQuaggaConfig(mode) {
+  const target = mode === "receive" ? receiveVideoWrapper : useVideoWrapper;
+  return {
+    inputStream: {
+      type: "LiveStream",
+      target: target,
+      constraints: {
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    },
+    numOfWorkers: navigator.hardwareConcurrency
+      ? Math.min(4, navigator.hardwareConcurrency)
+      : 2,
+    locator: {
+      patchSize: "medium",
+      halfSample: false
+    },
+    decoder: {
+      readers: [
+        "upc_reader",
+        "upc_e_reader",
+        "ean_reader",
+        "ean_8_reader",
+        "code_128_reader",
+        "code_39_reader",
+        "code_93_reader",
+        "itf_reader"
+      ]
+    },
+    locate: true
+  };
 }
 
-async function createHighResStream(deviceId) {
-  return navigator.mediaDevices.getUserMedia({
-    video: {
-      deviceId: deviceId ? { exact: deviceId } : undefined,
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      advanced: [{ focusMode: "continuous" }]
+function handleQuaggaDetected(result) {
+  if (!result || !result.codeResult || !result.codeResult.code) return;
+  const code = result.codeResult.code.trim();
+  const now = Date.now();
+
+  if (!code) return;
+
+  if (code === lastScanCode && now - lastScanTime < SCAN_COOLDOWN) {
+    return; // debounce duplicates
+  }
+
+  lastScanCode = code;
+  lastScanTime = now;
+
+  if (quaggaMode === "receive") {
+    addReceiveScan(code);
+  } else if (quaggaMode === "use") {
+    useOne(code);
+  }
+}
+
+function startQuagga(mode) {
+  if (quaggaRunning) return;
+  if (!window.Quagga) {
+    if (mode === "receive") setStatus(receiveStatus, "Quagga2 not loaded.", false);
+    else setStatus(useStatus, "Quagga2 not loaded.", false);
+    return;
+  }
+
+  quaggaMode = mode;
+  const config = getQuaggaConfig(mode);
+
+  Quagga.init(config, err => {
+    if (err) {
+      console.error(err);
+      if (mode === "receive") setStatus(receiveStatus, "Camera error: " + err.message, false);
+      else setStatus(useStatus, "Camera error: " + err.message, false);
+      return;
+    }
+
+    Quagga.start();
+    quaggaRunning = true;
+    Quagga.onDetected(handleQuaggaDetected);
+
+    if (mode === "receive") {
+      receiveVideoWrapper.classList.remove("hidden");
+      startReceiveScanBtn.disabled = true;
+      stopReceiveScanBtn.disabled = false;
+      receiveFlashBtn.disabled = false;
+      setStatus(receiveStatus, "Camera active. Scan items as they arrive.", true);
+    } else {
+      useVideoWrapper.classList.remove("hidden");
+      startUseScanBtn.disabled = true;
+      stopUseScanBtn.disabled = false;
+      useFlashBtn.disabled = false;
+      setStatus(useStatus, "Camera active. Scan empties before tossing.", true);
     }
   });
 }
 
-/*********************************************************
- * FLASH / TORCH CONTROL
- *********************************************************/
-async function toggleTorchForStream(stream, stateFlagName, statusEl) {
-  if (!stream) {
-    setStatus(statusEl, "No active camera stream.", false);
-    return;
-  }
-  const tracks = stream.getVideoTracks();
-  if (!tracks.length) {
-    setStatus(statusEl, "No video track for torch.", false);
-    return;
-  }
-  const track = tracks[0];
-  const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-  if (!capabilities.torch) {
-    setStatus(statusEl, "Flash not supported on this device.", false);
-    return;
-  }
+function stopQuagga() {
+  if (!quaggaRunning) return;
 
-  const currentOn = (stateFlagName === "receive") ? receiveTorchOn : useTorchOn;
-  const newState = !currentOn;
+  Quagga.offDetected(handleQuaggaDetected);
+  Quagga.stop();
+  quaggaRunning = false;
+  quaggaMode = null;
+  lastScanCode = null;
 
-  try {
-    await track.applyConstraints({
-      advanced: [{ torch: newState }]
-    });
-    if (stateFlagName === "receive") {
-      receiveTorchOn = newState;
-    } else {
-      useTorchOn = newState;
-    }
-    setStatus(statusEl, newState ? "Flash ON" : "Flash OFF", true);
-  } catch (e) {
-    console.error("Torch error", e);
-    setStatus(statusEl, "Unable to toggle flash.", false);
-  }
-}
-
-/*********************************************************
- * RECEIVE SCANNER (HIGH-RES LOOP)
- *********************************************************/
-async function startReceiveScanner() {
-  if (!window.ZXing) {
-    setStatus(receiveStatus, "ZXing not loaded", false);
-    return;
-  }
-  if (receiveReader) return;
-
-  try {
-    receiveReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS || undefined);
-    const deviceId = await getRearCameraId();
-
-    receiveStream = await createHighResStream(deviceId);
-    receiveVideo.srcObject = receiveStream;
-    receiveVideo.setAttribute("playsinline", "true");
-    await receiveVideo.play();
-
-    receiveVideoWrapper.classList.remove("hidden");
-    startReceiveScanBtn.disabled = true;
-    stopReceiveScanBtn.disabled = false;
-    receiveFlashBtn.disabled = false;
-    receiveTorchOn = false;
-
-    const loop = async () => {
-      if (!receiveReader || !receiveStream) return;
-      try {
-        const result = await receiveReader.decodeOnceFromVideoElement(receiveVideo);
-        if (result) {
-          addReceiveScan(result.getText());
-        }
-      } catch (e) {
-        // ignore, just try next frame
-      }
-      requestAnimationFrame(loop);
-    };
-
-    loop();
-    setStatus(receiveStatus, "Camera active. Scan items as they arrive.", true);
-  } catch (err) {
-    console.error(err);
-    setStatus(receiveStatus, "Camera error: " + err.message, false);
-    stopReceiveScanner();
-  }
-}
-
-function stopReceiveScanner() {
-  if (receiveReader) {
-    receiveReader.reset();
-    receiveReader = null;
-  }
-  stopStream(receiveStream);
-  receiveStream = null;
-  receiveTorchOn = false;
   receiveVideoWrapper.classList.add("hidden");
+  useVideoWrapper.classList.add("hidden");
+
   startReceiveScanBtn.disabled = false;
   stopReceiveScanBtn.disabled = true;
   receiveFlashBtn.disabled = true;
-}
+  receiveTorchOn = false;
 
-startReceiveScanBtn.addEventListener("click", startReceiveScanner);
-stopReceiveScanBtn.addEventListener("click", stopReceiveScanner);
-receiveFlashBtn.addEventListener("click", () =>
-  toggleTorchForStream(receiveStream, "receive", receiveStatus)
-);
-
-/*********************************************************
- * USE SCANNER (HIGH-RES LOOP)
- *********************************************************/
-async function startUseScanner() {
-  if (!window.ZXing) {
-    setStatus(useStatus, "ZXing not loaded", false);
-    return;
-  }
-  if (useReader) return;
-
-  try {
-    useReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS || undefined);
-    const deviceId = await getRearCameraId();
-
-    useStream = await createHighResStream(deviceId);
-    useVideo.srcObject = useStream;
-    useVideo.setAttribute("playsinline", "true");
-    await useVideo.play();
-
-    useVideoWrapper.classList.remove("hidden");
-    startUseScanBtn.disabled = true;
-    stopUseScanBtn.disabled = false;
-    useFlashBtn.disabled = false;
-    useTorchOn = false;
-
-    const loop = async () => {
-      if (!useReader || !useStream) return;
-      try {
-        const result = await useReader.decodeOnceFromVideoElement(useVideo);
-        if (result) {
-          useOne(result.getText());
-        }
-      } catch (e) {
-        // ignore, try next frame
-      }
-      requestAnimationFrame(loop);
-    };
-
-    loop();
-    setStatus(useStatus, "Camera active. Scan empties before tossing.", true);
-  } catch (err) {
-    console.error(err);
-    setStatus(useStatus, "Camera error: " + err.message, false);
-    stopUseScanner();
-  }
-}
-
-function stopUseScanner() {
-  if (useReader) {
-    useReader.reset();
-    useReader = null;
-  }
-  stopStream(useStream);
-  useStream = null;
-  useTorchOn = false;
-  useVideoWrapper.classList.add("hidden");
   startUseScanBtn.disabled = false;
   stopUseScanBtn.disabled = true;
   useFlashBtn.disabled = true;
+  useTorchOn = false;
 }
 
-startUseScanBtn.addEventListener("click", startUseScanner);
-stopUseScanBtn.addEventListener("click", stopUseScanner);
-useFlashBtn.addEventListener("click", () =>
-  toggleTorchForStream(useStream, "use", useStatus)
-);
+/*********************************************************
+ * FLASH / TORCH CONTROL (where supported)
+ *********************************************************/
+async function toggleTorch(mode) {
+  if (!quaggaRunning) return;
+
+  const track = Quagga.CameraAccess &&
+                Quagga.CameraAccess.getActiveTrack &&
+                Quagga.CameraAccess.getActiveTrack();
+  if (!track || !track.getCapabilities) {
+    if (mode === "receive") setStatus(receiveStatus, "Flash not supported on this device.", false);
+    else setStatus(useStatus, "Flash not supported on this device.", false);
+    return;
+  }
+
+  const caps = track.getCapabilities();
+  if (!caps.torch) {
+    if (mode === "receive") setStatus(receiveStatus, "Flash not supported on this device.", false);
+    else setStatus(useStatus, "Flash not supported on this device.", false);
+    return;
+  }
+
+  const newState = mode === "receive" ? !receiveTorchOn : !useTorchOn;
+
+  try {
+    await track.applyConstraints({ advanced: [{ torch: newState }] });
+    if (mode === "receive") {
+      receiveTorchOn = newState;
+      setStatus(receiveStatus, newState ? "Flash ON" : "Flash OFF", true);
+    } else {
+      useTorchOn = newState;
+      setStatus(useStatus, newState ? "Flash ON" : "Flash OFF", true);
+    }
+  } catch (e) {
+    console.error("Torch error", e);
+    if (mode === "receive") setStatus(receiveStatus, "Unable to toggle flash.", false);
+    else setStatus(useStatus, "Unable to toggle flash.", false);
+  }
+}
+
+/*********************************************************
+ * START/STOP SCANNERS
+ *********************************************************/
+startReceiveScanBtn.addEventListener("click", () => startQuagga("receive"));
+stopReceiveScanBtn.addEventListener("click", stopQuagga);
+receiveFlashBtn.addEventListener("click", () => toggleTorch("receive"));
+
+startUseScanBtn.addEventListener("click", () => startQuagga("use"));
+stopUseScanBtn.addEventListener("click", stopQuagga);
+useFlashBtn.addEventListener("click", () => toggleTorch("use"));
 
 /*********************************************************
  * INVENTORY TABLE RENDERING
@@ -837,8 +787,6 @@ invSearch.addEventListener("input", renderInventoryTable);
  * MODAL: NEW / EDIT ITEM
  *********************************************************/
 function openNewItem(upc, initialQty = 1) {
-  modalMode = "create";
-  modalUpcCurrent = upc;
   modalTitle.textContent = "New Item";
   modalSubtitle.textContent = "We’ve never seen this UPC before. Fill it out once and we’ll remember it.";
   modalUpc.value = upc;
@@ -852,14 +800,14 @@ function openNewItem(upc, initialQty = 1) {
   modalDeleteBtn.classList.add("hidden");
   modalStatus.textContent = "";
   itemModalBackdrop.classList.remove("hidden");
+  modalMode = "create";
+  modalUpcCurrent = upc;
 }
 
 function openEditItem(upc) {
   const item = inventory[upc];
   if (!item) return;
 
-  modalMode = "edit";
-  modalUpcCurrent = upc;
   modalTitle.textContent = "Edit Item";
   modalSubtitle.textContent = "Adjust name, category, par level or quantity as needed.";
   modalUpc.value = upc;
@@ -873,6 +821,8 @@ function openEditItem(upc) {
   modalDeleteBtn.classList.remove("hidden");
   modalStatus.textContent = "";
   itemModalBackdrop.classList.remove("hidden");
+  modalMode = "edit";
+  modalUpcCurrent = upc;
 }
 
 function closeItemModal() {
