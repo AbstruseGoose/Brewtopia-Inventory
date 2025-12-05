@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Brewtopia Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- ZXing for camera barcode scanning -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111;
+      color: #f5f5f5;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    .app {
+      width: 100%;
+      max-width: 800px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    h1, h2, h3, h4 {
+      margin-top: 0;
+    }
+    .card {
+      background: #1b1b1f;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 0 1px #26262b;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 16px;
+      margin: 4px 0;
+      border-radius: 8px;
+      border: none;
+      background: #3b82f6;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.secondary {
+      background: #374151;
+    }
+    .btn.danger {
+      background: #ef4444;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      margin: 4px 0 10px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #0f172a;
+      color: #e5e7eb;
+      box-sizing: border-box;
+    }
+    label {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .grid-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .status {
+      font-size: 13px;
+      margin-top: 4px;
+      color: #9ca3af;
+    }
+    .status.ok {
+      color: #4ade80;
+    }
+    .status.error {
+      color: #f97373;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid #27272f;
+      padding: 6px 4px;
+      text-align: left;
+    }
+    th {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    tr.low {
+      background: rgba(239,68,68,0.08);
+    }
+    tr.zero {
+      background: rgba(127,29,29,0.6);
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #374151;
+      color: #e5e7eb;
+    }
+    .tag.low {
+      background: #b45309;
+    }
+    .tag.zero {
+      background: #b91c1c;
+    }
+    .video-wrapper {
+      position: relative;
+      background: #020617;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: #000;
+    }
+    .scan-overlay {
+      position: absolute;
+      inset: 15%;
+      border: 2px solid rgba(59,130,246,0.8);
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(59,130,246,0.8);
+      pointer-events: none;
+    }
+    .scan-hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+    .small-text {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .flex-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .flex-row > * {
+      flex: 1;
+    }
+    .right {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- LOGIN -->
+  <div id="loginScreen" class="card">
+    <h1>Brewtopia Inventory</h1>
+    <p class="small-text">
+      Enter PIN to access inventory. This app updates a shared Google Sheet for the whole shop.
+    </p>
+    <label for="pinInput">PIN</label>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" />
+    <button id="loginBtn" class="btn">Unlock</button>
+    <div id="loginStatus" class="status"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="mainScreen" class="hidden">
+    <div class="card">
+      <div class="flex-row">
+        <div>
+          <h2 style="margin-bottom:4px;">Inventory</h2>
+          <div class="small-text" id="userLabel"></div>
+        </div>
+        <div class="right small-text">
+          <button id="logoutBtn" class="btn secondary" style="padding:6px 10px;font-size:12px;">Lock</button>
+        </div>
+      </div>
+      <div class="grid-buttons">
+        <button class="btn" id="btnReceive">Receive Stock</button>
+        <button class="btn" id="btnUse">Use Item</button>
+        <button class="btn secondary" id="btnViewInv">View Inventory</button>
+      </div>
+      <div class="status" id="globalStatus"></div>
+    </div>
+
+    <!-- RECEIVE STOCK -->
+    <div id="receiveCard" class="card hidden">
+      <h3>Receive Stock (Bulk Scan)</h3>
+      <p class="small-text">
+        Use the camera or a barcode scanner. Each scan adds <strong>+1</strong> for that UPC.
+      </p>
+      <div class="flex-row">
+        <select id="receiveCameraSelect"></select>
+        <button class="btn" id="startReceiveScanBtn">Start Camera Scan</button>
+        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop</button>
+      </div>
+      <div class="video-wrapper hidden" id="receiveVideoWrapper">
+        <video id="receiveVideo"></video>
+        <div class="scan-overlay"></div>
+      </div>
+      <div class="scan-hint">
+        If the camera is not allowed, use a handheld scanner and focus here:
+      </div>
+      <input id="receiveManualUpc" type="text" placeholder="Manual UPC entry" />
+      <button class="btn secondary" id="receiveManualBtn">Add Scan</button>
+
+      <h4 style="margin-top:16px;">Scanned items</h4>
+      <div id="receiveList" class="small-text">No items scanned yet.</div>
+      <button class="btn" id="receiveSaveBtn" disabled style="margin-top:12px;">Save to Inventory</button>
+      <div id="receiveStatus" class="status"></div>
+    </div>
+
+    <!-- USE ITEM -->
+    <div id="useCard" class="card hidden">
+      <h3>Use Item (Scan Out)</h3>
+      <p class="small-text">
+        Scan an empty bottle or container as you toss it. Each scan subtracts <strong>1</strong> from inventory.
+      </p>
+      <div class="flex-row">
+        <select id="useCameraSelect"></select>
+        <button class="btn" id="startUseScanBtn">Start Camera Scan</button>
+        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop</button>
+      </div>
+      <div class="video-wrapper hidden" id="useVideoWrapper">
+        <video id="useVideo"></video>
+        <div class="scan-overlay"></div>
+      </div>
+      <div class="scan-hint">
+        Or use a handheld scanner and focus here:
+      </div>
+      <input id="useManualUpc" type="text" placeholder="Manual UPC entry" />
+      <button class="btn secondary" id="useManualBtn">Use 1</button>
+      <div id="useStatus" class="status"></div>
+    </div>
+
+    <!-- INVENTORY VIEW -->
+    <div id="inventoryCard" class="card hidden">
+      <h3>Inventory Levels</h3>
+      <div class="flex-row">
+        <input id="invSearch" type="text" placeholder="Search by name or UPC" />
+        <select id="invFilter">
+          <option value="all">All items</option>
+          <option value="low">Low / below par</option>
+          <option value="zero">Out of stock</option>
+        </select>
+      </div>
+      <div class="small-text">
+        <span class="tag zero">0 in stock</span>
+        <span class="tag low">Below par level</span>
+      </div>
+      <div id="inventoryTableWrapper" style="margin-top:8px;max-height:350px;overflow:auto;">
+        <table id="inventoryTable">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>UPC</th>
+              <th>Cat.</th>
+              <th>Qty</th>
+              <th>Par</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBody">
+            <tr><td colspan="5" class="small-text">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn secondary" id="refreshInvBtn" style="margin-top:8px;">Refresh</button>
+      <div id="inventoryStatus" class="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== CONFIG =====
+  const SCRIPT_URL = "YOUR_SCRIPT_WEB_APP_URL_HERE"; // <-- replace with Apps Script Web App URL
+  const REQUIRED_PIN = "6251";
+  const BARCODE_FORMATS = [
+    ZXing.BarcodeFormat.UPC_A,
+    ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.EAN_13,
+    ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.CODE_128,
+    ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.ITF,
+    ZXing.BarcodeFormat.QR_CODE
+  ];
+  const ZXING_HINTS = new Map();
+  ZXING_HINTS.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, BARCODE_FORMATS);
+
+  // ===== STATE =====
+  let currentPin = null;
+  let currentUserName = "Brewtopia";
+  let inventoryCache = [];
+  let receiveScans = {}; // { upc: { upc, count } }
+
+  let receiveReader = null;
+  let useReader = null;
+
+  // ===== ELEMENTS =====
+  const loginScreen = document.getElementById("loginScreen");
+  const mainScreen = document.getElementById("mainScreen");
+  const pinInput = document.getElementById("pinInput");
+  const loginBtn = document.getElementById("loginBtn");
+  const loginStatus = document.getElementById("loginStatus");
+  const userLabel = document.getElementById("userLabel");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const globalStatus = document.getElementById("globalStatus");
+
+  const btnReceive = document.getElementById("btnReceive");
+  const btnUse = document.getElementById("btnUse");
+  const btnViewInv = document.getElementById("btnViewInv");
+
+  const receiveCard = document.getElementById("receiveCard");
+  const useCard = document.getElementById("useCard");
+  const inventoryCard = document.getElementById("inventoryCard");
+
+  const receiveCameraSelect = document.getElementById("receiveCameraSelect");
+  const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
+  const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
+  const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
+  const receiveVideo = document.getElementById("receiveVideo");
+  const receiveManualUpc = document.getElementById("receiveManualUpc");
+  const receiveManualBtn = document.getElementById("receiveManualBtn");
+  const receiveList = document.getElementById("receiveList");
+  const receiveSaveBtn = document.getElementById("receiveSaveBtn");
+  const receiveStatus = document.getElementById("receiveStatus");
+
+  const useCameraSelect = document.getElementById("useCameraSelect");
+  const startUseScanBtn = document.getElementById("startUseScanBtn");
+  const stopUseScanBtn = document.getElementById("stopUseScanBtn");
+  const useVideoWrapper = document.getElementById("useVideoWrapper");
+  const useVideo = document.getElementById("useVideo");
+  const useManualUpc = document.getElementById("useManualUpc");
+  const useManualBtn = document.getElementById("useManualBtn");
+  const useStatus = document.getElementById("useStatus");
+
+  const invSearch = document.getElementById("invSearch");
+  const invFilter = document.getElementById("invFilter");
+  const inventoryBody = document.getElementById("inventoryBody");
+  const inventoryStatus = document.getElementById("inventoryStatus");
+  const refreshInvBtn = document.getElementById("refreshInvBtn");
+
+  // ===== LOGIN =====
+  loginBtn.addEventListener("click", () => {
+    const pin = pinInput.value.trim();
+    if (!pin) {
+      setStatus(loginStatus, "Enter PIN", "error");
+      return;
+    }
+    if (pin !== REQUIRED_PIN) {
+      setStatus(loginStatus, "Incorrect PIN", "error");
+      return;
+    }
+    currentPin = pin;
+    localStorage.setItem("brewtopia_pin", pin);
+    showMain();
+  });
+
+  logoutBtn.addEventListener("click", () => {
+    stopReceiveScanner();
+    stopUseScanner();
+    currentPin = null;
+    localStorage.removeItem("brewtopia_pin");
+    mainScreen.classList.add("hidden");
+    loginScreen.classList.remove("hidden");
+  });
+
+  function showMain() {
+    loginScreen.classList.add("hidden");
+    mainScreen.classList.remove("hidden");
+    userLabel.textContent = "User: Barista • PIN OK";
+    setStatus(globalStatus, "Connected. Use buttons to manage inventory.", "ok");
+    loadInventory();
+    populateCameraSelects();
+  }
+
+  // Auto login if PIN cached
+  (function autoLogin() {
+    const savedPin = localStorage.getItem("brewtopia_pin");
+    if (savedPin && savedPin === REQUIRED_PIN) {
+      currentPin = savedPin;
+      showMain();
+    }
+  })();
+
+  // ===== CAMERA ENUMERATION =====
+  async function populateCameraSelects() {
+    try {
+      const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+
+      receiveCameraSelect.innerHTML = "";
+      useCameraSelect.innerHTML = "";
+
+      if (!devices.length) {
+        const opt1 = document.createElement("option");
+        opt1.value = "";
+        opt1.textContent = "No cameras found";
+        receiveCameraSelect.appendChild(opt1.cloneNode(true));
+        useCameraSelect.appendChild(opt1);
+        return;
+      }
+
+      devices.forEach((d, idx) => {
+        const label = d.label || `Camera ${idx + 1}`;
+        const opt = document.createElement("option");
+        opt.value = d.deviceId;
+        opt.textContent = label;
+        const opt2 = opt.cloneNode(true);
+        receiveCameraSelect.appendChild(opt);
+        useCameraSelect.appendChild(opt2);
+      });
+    } catch (err) {
+      console.error("Camera enumeration error", err);
+    }
+  }
+
+  window.addEventListener("load", populateCameraSelects);
+
+  // ===== NAV BETWEEN SECTIONS =====
+  btnReceive.addEventListener("click", () => {
+    showSection("receive");
+  });
+  btnUse.addEventListener("click", () => {
+    showSection("use");
+  });
+  btnViewInv.addEventListener("click", () => {
+    showSection("inventory");
+    renderInventoryTable();
+  });
+
+  function showSection(which) {
+    receiveCard.classList.add("hidden");
+    useCard.classList.add("hidden");
+    inventoryCard.classList.add("hidden");
+
+    if (which === "receive") {
+      receiveCard.classList.remove("hidden");
+    } else if (which === "use") {
+      useCard.classList.remove("hidden");
+    } else if (which === "inventory") {
+      inventoryCard.classList.remove("hidden");
+    }
+  }
+
+  // ===== STATUS HELPERS =====
+  function setStatus(el, msg, type) {
+    el.textContent = msg || "";
+    el.classList.remove("ok", "error");
+    if (type) el.classList.add(type);
+  }
+
+  // ===== API CALL HELPER =====
+  async function apiCall(payload) {
+    if (!currentPin) throw new Error("Not authenticated");
+
+    const body = Object.assign({}, payload, {
+      pin: currentPin,
+      user: currentUserName
+    });
+
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.error || "Unknown error");
+    }
+    return data;
+  }
+
+  // ===== INVENTORY LOAD & RENDER =====
+  async function loadInventory() {
+    try {
+      setStatus(globalStatus, "Loading inventory…", null);
+      const data = await apiCall({ action: "getInventory" });
+      inventoryCache = data.inventory || [];
+      renderInventoryTable();
+      setStatus(globalStatus, "Inventory loaded.", "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus(globalStatus, "Inventory load failed: " + err.message, "error");
+    }
+  }
+
+  function renderInventoryTable() {
+    const search = invSearch.value.trim().toLowerCase();
+    const filter = invFilter.value;
+
+    let rows = inventoryCache.slice();
+
+    if (search) {
+      rows = rows.filter(r =>
+        String(r.item_name || "").toLowerCase().includes(search) ||
+        String(r.upc || "").includes(search)
+      );
+    }
+
+    if (filter === "low") {
+      rows = rows.filter(r => {
+        const q = Number(r.quantity || 0);
+        const par = Number(r.par_level || 0);
+        return par > 0 && q > 0 && q < par;
+      });
+    } else if (filter === "zero") {
+      rows = rows.filter(r => Number(r.quantity || 0) === 0);
+    }
+
+    inventoryBody.innerHTML = "";
+
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 5;
+      td.textContent = "No items match.";
+      td.className = "small-text";
+      tr.appendChild(td);
+      inventoryBody.appendChild(tr);
+      return;
+    }
+
+    rows.sort((a, b) => (a.item_name || "").localeCompare(b.item_name || ""));
+
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      const q = Number(r.quantity || 0);
+      const par = Number(r.par_level || 0);
+
+      if (q === 0) tr.classList.add("zero");
+      else if (par > 0 && q < par) tr.classList.add("low");
+
+      const tdName = document.createElement("td");
+      tdName.innerHTML = `<strong>${r.item_name || "(unnamed)"}</strong><br><span class="small-text">${r.size || ""} ${r.unit || ""}</span>`;
+
+      const tdUpc = document.createElement("td");
+      tdUpc.textContent = r.upc || "";
+
+      const tdCat = document.createElement("td");
+      tdCat.textContent = r.category || "";
+
+      const tdQty = document.createElement("td");
+      tdQty.textContent = q;
+
+      const tdPar = document.createElement("td");
+      tdPar.textContent = par || "";
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdUpc);
+      tr.appendChild(tdCat);
+      tr.appendChild(tdQty);
+      tr.appendChild(tdPar);
+      inventoryBody.appendChild(tr);
+    }
+  }
+
+  invSearch.addEventListener("input", renderInventoryTable);
+  invFilter.addEventListener("change", renderInventoryTable);
+  refreshInvBtn.addEventListener("click", loadInventory);
+
+  // ===== RECEIVE STOCK (BULK) =====
+  function addReceiveScan(upc) {
+    if (!upc) return;
+    upc = upc.trim();
+    if (!upc) return;
+
+    if (!receiveScans[upc]) {
+      receiveScans[upc] = { upc, count: 0 };
+    }
+    receiveScans[upc].count++;
+
+    renderReceiveList();
+  }
+
+  function renderReceiveList() {
+    const keys = Object.keys(receiveScans);
+    if (!keys.length) {
+      receiveList.textContent = "No items scanned yet.";
+      receiveSaveBtn.disabled = true;
+      return;
+    }
+
+    const parts = [];
+    for (const upc of keys) {
+      const entry = receiveScans[upc];
+      const existing = inventoryCache.find(r => r.upc === upc);
+      const name = existing ? existing.item_name : "(new item)";
+      parts.push(`<div>- <strong>${name}</strong> [${upc}] &times; ${entry.count}</div>`);
+    }
+    receiveList.innerHTML = parts.join("");
+    receiveSaveBtn.disabled = false;
+  }
+
+  receiveManualBtn.addEventListener("click", () => {
+    const upc = receiveManualUpc.value;
+    if (!upc) return;
+    addReceiveScan(upc);
+    receiveManualUpc.value = "";
+    receiveManualUpc.focus();
+  });
+
+  receiveSaveBtn.addEventListener("click", async () => {
+    const entries = Object.values(receiveScans).map(e => ({
+      upc: e.upc,
+      qty: e.count
+      // Names/categories/par can be curated later in the sheet.
+    }));
+
+    if (!entries.length) return;
+
+    try {
+      setStatus(receiveStatus, "Saving to sheet…", null);
+      await apiCall({ action: "addStock", entries });
+      setStatus(receiveStatus, "Saved. Inventory updated.", "ok");
+      receiveScans = {};
+      renderReceiveList();
+      loadInventory();
+    } catch (err) {
+      console.error(err);
+      setStatus(receiveStatus, "Save failed: " + err.message, "error");
+    }
+  });
+
+  // ===== USE ITEM (SINGLE SCAN) =====
+  async function useOne(upc) {
+    if (!upc) return;
+    upc = upc.trim();
+    if (!upc) return;
+
+    try {
+      setStatus(useStatus, "Logging usage…", null);
+      const res = await apiCall({ action: "useItem", upc, qty: 1 });
+      const name = res.item_name || "(item)";
+      setStatus(useStatus, `Used 1 of ${name}. New qty: ${res.qty_after}`, "ok");
+      loadInventory();
+    } catch (err) {
+      console.error(err);
+      setStatus(useStatus, "Use failed: " + err.message, "error");
+    }
+  }
+
+  useManualBtn.addEventListener("click", () => {
+    const upc = useManualUpc.value;
+    if (!upc) return;
+    useOne(upc);
+    useManualUpc.value = "";
+    useManualUpc.focus();
+  });
+
+  // ===== CAMERA SCANNING (ZXing) =====
+  async function startReceiveScanner() {
+    stopReceiveScanner();
+
+    try {
+      receiveReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS);
+      const deviceId = receiveCameraSelect.value || undefined;
+
+      receiveVideoWrapper.classList.remove("hidden");
+      startReceiveScanBtn.disabled = true;
+      stopReceiveScanBtn.disabled = false;
+
+      await receiveReader.decodeFromVideoDevice(deviceId, receiveVideo, (result, err) => {
+        if (result) {
+          const text = result.getText();
+          addReceiveScan(text);
+        }
+      });
+      setStatus(receiveStatus, "Camera active. Scan items.", "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus(receiveStatus, "Camera error: " + err.message, "error");
+      stopReceiveScanner();
+    }
+  }
+
+  function stopReceiveScanner() {
+    if (receiveReader) {
+      receiveReader.reset();
+      receiveReader = null;
+    }
+    receiveVideoWrapper.classList.add("hidden");
+    startReceiveScanBtn.disabled = false;
+    stopReceiveScanBtn.disabled = true;
+  }
+
+  async function startUseScanner() {
+    stopUseScanner();
+
+    try {
+      useReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS);
+      const deviceId = useCameraSelect.value || undefined;
+
+      useVideoWrapper.classList.remove("hidden");
+      startUseScanBtn.disabled = true;
+      stopUseScanBtn.disabled = false;
+
+      await useReader.decodeFromVideoDevice(deviceId, useVideo, (result, err) => {
+        if (result) {
+          const text = result.getText();
+          useOne(text);
+        }
+      });
+      setStatus(useStatus, "Camera active. Scan empties as you toss them.", "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus(useStatus, "Camera error: " + err.message, "error");
+      stopUseScanner();
+    }
+  }
+
+  function stopUseScanner() {
+    if (useReader) {
+      useReader.reset();
+      useReader = null;
+    }
+    useVideoWrapper.classList.add("hidden");
+    startUseScanBtn.disabled = false;
+    stopUseScanBtn.disabled = true;
+  }
+
+  startReceiveScanBtn.addEventListener("click", startReceiveScanner);
+  stopReceiveScanBtn.addEventListener("click", stopReceiveScanner);
+  startUseScanBtn.addEventListener("click", startUseScanner);
+  stopUseScanBtn.addEventListener("click", stopUseScanner);
+
+</script>
+</body>
+</html>
