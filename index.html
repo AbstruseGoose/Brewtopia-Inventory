@@ -19,17 +19,6 @@
       --text-muted: #8b949e;
       --accent: #2f81f7;
       --accent-soft: rgba(47, 129, 247, 0.2);
-
-      --cat-syrup: rgba(244, 114, 182, 0.18);
-      --cat-syrup-border: rgba(244, 114, 182, 0.6);
-      --cat-milk: rgba(56, 189, 248, 0.18);
-      --cat-milk-border: rgba(56, 189, 248, 0.6);
-      --cat-topping: rgba(251, 191, 36, 0.18);
-      --cat-topping-border: rgba(251, 191, 36, 0.6);
-      --cat-cup: rgba(52, 211, 153, 0.18);
-      --cat-cup-border: rgba(52, 211, 153, 0.6);
-      --cat-other: rgba(148, 163, 184, 0.18);
-      --cat-other-border: rgba(148, 163, 184, 0.6);
     }
 
     * { box-sizing: border-box; }
@@ -94,6 +83,11 @@
       background: linear-gradient(135deg, #b91c1c, #ef4444);
     }
 
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
     input, select, textarea {
       width: 100%;
       padding: 8px 10px;
@@ -126,6 +120,10 @@
     }
 
     .hidden { display: none !important; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 4px 0; text-align: left; }
+
   </style>
 </head>
 
@@ -164,11 +162,14 @@
     <div id="receiveCard" class="card hidden">
       <h3>Receive Stock</h3>
 
-      <button class="btn" id="startReceiveScanBtn">🎥 Start Camera</button>
-      <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" id="startReceiveScanBtn">🎥 Start Camera</button>
+        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="receiveFlashBtn" disabled>🔦 Flash</button>
+      </div>
 
       <div id="receiveVideoWrapper" class="video-wrapper hidden">
-        <video id="receiveVideo"></video>
+        <video id="receiveVideo" playsinline></video>
         <div class="scan-overlay"></div>
       </div>
 
@@ -189,11 +190,14 @@
     <div id="useCard" class="card hidden">
       <h3>Use Item</h3>
 
-      <button class="btn" id="startUseScanBtn">🎥 Start Camera</button>
-      <button class="btn secondary" id="stopUseScanBtn" disabled>Stop</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" id="startUseScanBtn">🎥 Start Camera</button>
+        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="useFlashBtn" disabled>🔦 Flash</button>
+      </div>
 
       <div id="useVideoWrapper" class="video-wrapper hidden">
-        <video id="useVideo"></video>
+        <video id="useVideo" playsinline></video>
         <div class="scan-overlay"></div>
       </div>
 
@@ -211,14 +215,14 @@
 
       <input id="invSearch" type="text" placeholder="Search items…" />
 
-      <table style="width:100%;margin-top:12px;border-collapse:collapse;font-size:14px;">
+      <table style="margin-top:12px;">
         <thead>
           <tr>
-            <th style="text-align:left;padding:4px 0;">Item</th>
-            <th style="text-align:left;padding:4px 0;">UPC</th>
-            <th style="text-align:left;padding:4px 0;">Category</th>
-            <th style="text-align:left;padding:4px 0;">Qty</th>
-            <th style="text-align:left;padding:4px 0;">Par</th>
+            <th>Item</th>
+            <th>UPC</th>
+            <th>Category</th>
+            <th>Qty</th>
+            <th>Par</th>
             <th></th>
           </tr>
         </thead>
@@ -239,7 +243,7 @@
       background:#111;
       border-radius:14px;
       padding:16px;border:1px solid #333;
-      box-shadow:0 8px 28px rgba(0,0,0,0.6);">
+      box-shadow:0 8px 28px rgba(0, 0, 0, 0.6);">
 
       <h3 id="modalTitle">New Item</h3>
       <div id="modalSubtitle" style="font-size:13px;color:#aaa;margin-bottom:8px;"></div>
@@ -301,7 +305,11 @@ const STORAGE_KEY = "brewtopia_inventory_localcache_v1";
 let inventory = {};        // full inventory
 let receiveScans = {};     // UPC → count (Receive Stock)
 let receiveReader = null;
+let receiveStream = null;
 let useReader = null;
+let useStream = null;
+let receiveTorchOn = false;
+let useTorchOn = false;
 let modalMode = "create";  // "create" or "edit"
 let modalUpcCurrent = null;
 
@@ -346,6 +354,7 @@ const inventoryCard = document.getElementById("inventoryCard");
 
 const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
 const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
+const receiveFlashBtn = document.getElementById("receiveFlashBtn");
 const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
 const receiveVideo = document.getElementById("receiveVideo");
 const receiveManualUpc = document.getElementById("receiveManualUpc");
@@ -356,6 +365,7 @@ const receiveStatus = document.getElementById("receiveStatus");
 
 const startUseScanBtn = document.getElementById("startUseScanBtn");
 const stopUseScanBtn = document.getElementById("stopUseScanBtn");
+const useFlashBtn = document.getElementById("useFlashBtn");
 const useVideoWrapper = document.getElementById("useVideoWrapper");
 const useVideo = document.getElementById("useVideo");
 const useManualUpc = document.getElementById("useManualUpc");
@@ -405,6 +415,12 @@ function beep() {
 
 function vibrate() {
   if (navigator.vibrate) navigator.vibrate(70);
+}
+
+function stopStream(stream) {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+  }
 }
 
 /*********************************************************
@@ -477,13 +493,11 @@ function addReceiveScan(upc) {
 
   const existing = inventory[upc];
 
-  // If unknown UPC → open modal with Qty = 1
   if (!existing) {
     openNewItem(upc, 1);
     return;
   }
 
-  // Increment session scan count
   receiveScans[upc] = (receiveScans[upc] || 0) + 1;
   beep();
   vibrate();
@@ -573,45 +587,104 @@ useManualBtn.addEventListener("click", () => {
 });
 
 /*********************************************************
- * CAMERA SCANNERS (with UPC/EAN formats)
+ * CAMERA HELPERS
  *********************************************************/
-
-// Helper: get rear camera deviceId
 async function getRearCameraId() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const cams = devices.filter(d => d.kind === "videoinput");
-
-  let rear = cams.find(d =>
-    /back|rear|environment/i.test(d.label)
-  );
-
+  let rear = cams.find(d => /back|rear|environment/i.test(d.label));
   return rear ? rear.deviceId : cams[0]?.deviceId;
 }
 
-// RECEIVE scanner
+async function createHighResStream(deviceId) {
+  return navigator.mediaDevices.getUserMedia({
+    video: {
+      deviceId: deviceId ? { exact: deviceId } : undefined,
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      advanced: [{ focusMode: "continuous" }]
+    }
+  });
+}
+
+/*********************************************************
+ * FLASH / TORCH CONTROL
+ *********************************************************/
+async function toggleTorchForStream(stream, stateFlagName, statusEl) {
+  if (!stream) {
+    setStatus(statusEl, "No active camera stream.", false);
+    return;
+  }
+  const tracks = stream.getVideoTracks();
+  if (!tracks.length) {
+    setStatus(statusEl, "No video track for torch.", false);
+    return;
+  }
+  const track = tracks[0];
+  const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+  if (!capabilities.torch) {
+    setStatus(statusEl, "Flash not supported on this device.", false);
+    return;
+  }
+
+  const currentOn = (stateFlagName === "receive") ? receiveTorchOn : useTorchOn;
+  const newState = !currentOn;
+
+  try {
+    await track.applyConstraints({
+      advanced: [{ torch: newState }]
+    });
+    if (stateFlagName === "receive") {
+      receiveTorchOn = newState;
+    } else {
+      useTorchOn = newState;
+    }
+    setStatus(statusEl, newState ? "Flash ON" : "Flash OFF", true);
+  } catch (e) {
+    console.error("Torch error", e);
+    setStatus(statusEl, "Unable to toggle flash.", false);
+  }
+}
+
+/*********************************************************
+ * RECEIVE SCANNER (HIGH-RES LOOP)
+ *********************************************************/
 async function startReceiveScanner() {
   if (!window.ZXing) {
     setStatus(receiveStatus, "ZXing not loaded", false);
     return;
   }
   if (receiveReader) return;
+
   try {
     receiveReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS || undefined);
     const deviceId = await getRearCameraId();
 
+    receiveStream = await createHighResStream(deviceId);
+    receiveVideo.srcObject = receiveStream;
+    receiveVideo.setAttribute("playsinline", "true");
+    await receiveVideo.play();
+
     receiveVideoWrapper.classList.remove("hidden");
     startReceiveScanBtn.disabled = true;
     stopReceiveScanBtn.disabled = false;
+    receiveFlashBtn.disabled = false;
+    receiveTorchOn = false;
 
-    await receiveReader.decodeFromVideoDevice(
-      deviceId,
-      receiveVideo,
-      (result, err) => {
+    const loop = async () => {
+      if (!receiveReader || !receiveStream) return;
+      try {
+        const result = await receiveReader.decodeOnceFromVideoElement(receiveVideo);
         if (result) {
           addReceiveScan(result.getText());
         }
+      } catch (e) {
+        // ignore, just try next frame
       }
-    );
+      requestAnimationFrame(loop);
+    };
+
+    loop();
     setStatus(receiveStatus, "Camera active. Scan items as they arrive.", true);
   } catch (err) {
     console.error(err);
@@ -625,35 +698,60 @@ function stopReceiveScanner() {
     receiveReader.reset();
     receiveReader = null;
   }
+  stopStream(receiveStream);
+  receiveStream = null;
+  receiveTorchOn = false;
   receiveVideoWrapper.classList.add("hidden");
   startReceiveScanBtn.disabled = false;
   stopReceiveScanBtn.disabled = true;
+  receiveFlashBtn.disabled = true;
 }
 
-// USE scanner
+startReceiveScanBtn.addEventListener("click", startReceiveScanner);
+stopReceiveScanBtn.addEventListener("click", stopReceiveScanner);
+receiveFlashBtn.addEventListener("click", () =>
+  toggleTorchForStream(receiveStream, "receive", receiveStatus)
+);
+
+/*********************************************************
+ * USE SCANNER (HIGH-RES LOOP)
+ *********************************************************/
 async function startUseScanner() {
   if (!window.ZXing) {
     setStatus(useStatus, "ZXing not loaded", false);
     return;
   }
   if (useReader) return;
+
   try {
     useReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS || undefined);
     const deviceId = await getRearCameraId();
 
+    useStream = await createHighResStream(deviceId);
+    useVideo.srcObject = useStream;
+    useVideo.setAttribute("playsinline", "true");
+    await useVideo.play();
+
     useVideoWrapper.classList.remove("hidden");
     startUseScanBtn.disabled = true;
     stopUseScanBtn.disabled = false;
+    useFlashBtn.disabled = false;
+    useTorchOn = false;
 
-    await useReader.decodeFromVideoDevice(
-      deviceId,
-      useVideo,
-      (result, err) => {
+    const loop = async () => {
+      if (!useReader || !useStream) return;
+      try {
+        const result = await useReader.decodeOnceFromVideoElement(useVideo);
         if (result) {
           useOne(result.getText());
         }
+      } catch (e) {
+        // ignore, try next frame
       }
-    );
+      requestAnimationFrame(loop);
+    };
+
+    loop();
     setStatus(useStatus, "Camera active. Scan empties before tossing.", true);
   } catch (err) {
     console.error(err);
@@ -667,15 +765,20 @@ function stopUseScanner() {
     useReader.reset();
     useReader = null;
   }
+  stopStream(useStream);
+  useStream = null;
+  useTorchOn = false;
   useVideoWrapper.classList.add("hidden");
   startUseScanBtn.disabled = false;
   stopUseScanBtn.disabled = true;
+  useFlashBtn.disabled = true;
 }
 
-startReceiveScanBtn.addEventListener("click", startReceiveScanner);
-stopReceiveScanBtn.addEventListener("click", stopReceiveScanner);
 startUseScanBtn.addEventListener("click", startUseScanner);
 stopUseScanBtn.addEventListener("click", stopUseScanner);
+useFlashBtn.addEventListener("click", () =>
+  toggleTorchForStream(useStream, "use", useStatus)
+);
 
 /*********************************************************
  * INVENTORY TABLE RENDERING
@@ -824,7 +927,6 @@ modalSaveBtn.addEventListener("click", () => {
     inventory[upc] = item;
   }
 
-  // IMPORTANT: no touching receiveScans here → no double-count bug
   saveInventoryLocal();
   renderInventoryTable();
   renderReceiveList();
@@ -916,7 +1018,6 @@ btnExport.addEventListener("click", () => {
 
 /*********************************************************
  * USB BARCODE SCANNER SUPPORT
- * (Works with scanners that act like a USB keyboard)
  *********************************************************/
 let scanBuffer = "";
 let lastCharTime = 0;
@@ -925,12 +1026,11 @@ const SCAN_TIMEOUT = 80; // ms between characters to count as one scan
 window.addEventListener("keydown", (e) => {
   const active = document.activeElement;
   if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
-    return; // let normal typing work in fields
+    return;
   }
 
   const now = Date.now();
 
-  // Reset buffer if time gap too large
   if (now - lastCharTime > SCAN_TIMEOUT) {
     scanBuffer = "";
   }
@@ -946,7 +1046,6 @@ window.addEventListener("keydown", (e) => {
     scanBuffer = "";
     if (!upc) return;
 
-    // Decide mode based on which card is visible
     const inReceive = !receiveCard.classList.contains("hidden");
     const inUse = !useCard.classList.contains("hidden");
 
