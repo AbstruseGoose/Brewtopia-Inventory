@@ -216,13 +216,27 @@
     }
 
     .video-wrapper {
-      position: relative;
-      background: #010409;
-      border-radius: 14px;
-      overflow: hidden;
-      margin-top: 8px;
-      border: 1px solid #30363d;
-      min-height: 200px;
+  position: relative;
+  background: #010409;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 8px;
+  border: 1px solid #30363d;
+
+  /* NEW responsive size */
+  width: 100%;
+  height: 240px;       /* Recommended UPC scan window height */
+  max-height: 240px;
+}
+
+/* Make video fill the resize box cleanly */
+.video-wrapper video,
+.video-wrapper canvas {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
     }
 
     /* Quagga will inject its own <video> + <canvas> here */
