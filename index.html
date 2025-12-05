@@ -5,7 +5,7 @@
   <title>Brewtopia Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ZXing for camera barcode scanning (pinned stable version) -->
+  <!-- ZXing for camera barcode scanning -->
   <script src="https://unpkg.com/@zxing/library@0.18.6"></script>
 
   <style>
@@ -32,9 +32,7 @@
       --cat-other-border: rgba(148, 163, 184, 0.6);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -48,20 +46,10 @@
       padding: 16px;
     }
 
-    .app {
-      width: 100%;
-      max-width: 920px;
-      margin: 0 auto;
-    }
+    .app { width: 100%; max-width: 920px; margin: 0 auto; }
 
-    h1, h2, h3, h4 {
-      margin: 0 0 0.3rem;
-      font-weight: 600;
-    }
-
-    p {
-      margin: 0.2rem 0 0.6rem;
-    }
+    h1, h2, h3, h4 { margin: 0 0 0.3rem; font-weight: 600; }
+    p { margin: 0.2rem 0 0.6rem; }
 
     .card {
       background: var(--bg-card);
@@ -107,7 +95,6 @@
       transform: translateY(0);
       box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 3px 8px rgba(34,197,94,0.5);
     }
-
     .btn.secondary {
       background: linear-gradient(135deg, #21262d, #161b22);
       color: var(--text-primary);
@@ -117,12 +104,10 @@
     .btn.secondary:hover {
       background: linear-gradient(135deg, #262b33, #161b22);
     }
-
     .btn.danger {
       background: linear-gradient(135deg, #b91c1c, #ef4444);
       box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 8px 18px rgba(239,68,68,0.4);
     }
-
     .btn:disabled {
       opacity: 0.55;
       cursor: default;
@@ -141,27 +126,15 @@
       margin: 4px 0 10px;
       outline: none;
     }
-
     input:focus, select:focus, textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 1px var(--accent-soft);
     }
 
-    label {
-      font-size: 13px;
-      color: var(--text-muted);
-      display: block;
-      margin-top: 4px;
-    }
+    label { font-size: 13px; color: var(--text-muted); display: block; margin-top: 4px; }
 
-    .small-text {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .muted {
-      color: var(--text-muted);
-    }
+    .small-text { font-size: 12px; color: var(--text-muted); }
+    .muted { color: var(--text-muted); }
 
     .grid-buttons {
       display: grid;
@@ -176,29 +149,18 @@
       align-items: center;
       flex-wrap: wrap;
     }
-    .flex-row > * {
-      flex: 1;
-      min-width: 0;
-    }
-    .flex-row.right {
-      justify-content: flex-end;
-    }
+    .flex-row > * { flex: 1; min-width: 0; }
+    .flex-row.right { justify-content: flex-end; }
 
     .status {
       font-size: 12px;
       margin-top: 6px;
       color: var(--text-muted);
     }
-    .status.ok {
-      color: #4ade80;
-    }
-    .status.error {
-      color: #f97373;
-    }
+    .status.ok { color: #4ade80; }
+    .status.error { color: #f97373; }
 
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
     .pill-row {
       display: flex;
@@ -223,12 +185,7 @@
       margin-top: 8px;
       border: 1px solid #30363d;
     }
-
-    video {
-      width: 100%;
-      display: block;
-      background: #000;
-    }
+    video { width: 100%; display: block; background: #000; }
 
     .scan-overlay {
       position: absolute;
@@ -239,11 +196,7 @@
       pointer-events: none;
     }
 
-    .scan-hint {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
+    .scan-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 
     table {
       width: 100%;
@@ -262,12 +215,8 @@
       letter-spacing: 0.03em;
     }
 
-    tr.stock-zero {
-      background: linear-gradient(to right, rgba(127, 29, 29, 0.38), transparent);
-    }
-    tr.stock-low {
-      background: linear-gradient(to right, rgba(180, 83, 9, 0.28), transparent);
-    }
+    tr.stock-zero { background: linear-gradient(to right, rgba(127, 29, 29, 0.38), transparent); }
+    tr.stock-low { background: linear-gradient(to right, rgba(180, 83, 9, 0.28), transparent); }
 
     .chip {
       display: inline-flex;
@@ -304,27 +253,6 @@
       color: #e5e7eb;
     }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-size: 11px;
-      background: #111827;
-      color: var(--text-muted);
-    }
-    .badge.out {
-      background: rgba(127,29,29,0.8);
-      color: #fee2e2;
-    }
-    .badge.low {
-      background: rgba(180,83,9,0.85);
-      color: #fef3c7;
-    }
-    .badge.ok {
-      background: rgba(22,163,74,0.85);
-      color: #dcfce7;
-    }
-
     .muted-label {
       font-size: 11px;
       text-transform: uppercase;
@@ -339,12 +267,8 @@
       align-items: center;
       margin-top: 4px;
     }
-    .inventory-toolbar > * {
-      flex: 1;
-      min-width: 0;
-    }
+    .inventory-toolbar > * { flex: 1; min-width: 0; }
 
-    /* Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -395,7 +319,7 @@
     <button id="loginBtn" class="btn">Unlock</button>
     <div id="loginStatus" class="status"></div>
     <p class="small-text" style="margin-top:10px;">
-      Data is stored locally on this device and persists until you clear it. You can export a printable copy anytime.
+      Data is stored locally on this device. You can sync from GitHub and download a JSON backup anytime.
     </p>
   </div>
 
@@ -420,7 +344,12 @@
         <button class="btn" id="btnReceive">📦 Receive Stock</button>
         <button class="btn secondary" id="btnUse">🥤 Use Item</button>
         <button class="btn secondary" id="btnInventory">📋 Inventory</button>
-        <button class="btn secondary" id="btnExport">🖨️ Export / Print</button>
+        <button class="btn secondary" id="btnExportPrint">🖨️ Export / Print</button>
+      </div>
+
+      <div class="grid-buttons" style="margin-top:8px;">
+        <button class="btn secondary" id="btnSyncGithub">🔄 Sync from GitHub</button>
+        <button class="btn secondary" id="btnDownloadJson">💾 Download Backup</button>
       </div>
 
       <div class="pill-row">
@@ -443,7 +372,6 @@
       <div class="flex-row">
         <button class="btn" id="startReceiveScanBtn">🎥 Camera Scan</button>
         <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop Camera</button>
-        <button class="btn secondary" id="receiveFlashBtn" disabled>🔦 Flash</button>
       </div>
       <div id="receiveVideoWrapper" class="video-wrapper hidden">
         <video id="receiveVideo"></video>
@@ -476,7 +404,6 @@
       <div class="flex-row">
         <button class="btn" id="startUseScanBtn">🎥 Camera Scan</button>
         <button class="btn secondary" id="stopUseScanBtn" disabled>Stop Camera</button>
-        <button class="btn secondary" id="useFlashBtn" disabled>🔦 Flash</button>
       </div>
       <div id="useVideoWrapper" class="video-wrapper hidden">
         <video id="useVideo"></video>
@@ -527,7 +454,7 @@
           </tr>
           </thead>
           <tbody id="inventoryBody">
-          <tr><td colspan="6" class="small-text">No inventory yet. Start by scanning items in “Receive Stock”.</td></tr>
+          <tr><td colspan="6" class="small-text">No inventory yet. Start by syncing from GitHub or scanning items in “Receive Stock”.</td></tr>
           </tbody>
         </table>
       </div>
@@ -600,44 +527,29 @@
    * CONFIG
    ***************/
   const PIN = "6251";
-  const STORAGE_KEY = "brewtopia_inventory_v1";
+  const STORAGE_KEY = "brewtopia_inventory_v2";
+  const PIN_KEY = "brewtopia_pin_ok";
 
-  // Strong barcode formats (UPC/EAN/etc)
-  const ALLOWED_FORMATS = [
-    ZXing.BarcodeFormat.UPC_A,
-    ZXing.BarcodeFormat.UPC_E,
-    ZXing.BarcodeFormat.EAN_13,
-    ZXing.BarcodeFormat.EAN_8,
-    ZXing.BarcodeFormat.CODE_128,
-    ZXing.BarcodeFormat.CODE_39,
-    ZXing.BarcodeFormat.ITF,
-    ZXing.BarcodeFormat.QR_CODE
-  ];
+  // Raw GitHub URL to inventory.json
+  const REMOTE_INVENTORY_URL =
+    "https://raw.githubusercontent.com/abstrusegoose/Brewtopia-Inventory/main/inventory.json";
 
   /***************
    * STATE
    ***************/
-  let inventory = {};        // upc -> item
-  let receiveScans = {};     // upc -> count (current session)
+  let inventory = {};    // upc -> item
+  let receiveScans = {}; // upc -> count
   let receiveReader = null;
   let useReader = null;
-  let modalMode = "create";  // or "edit"
+  let modalMode = "create";
   let modalUpcCurrent = null;
-  let currentMode = "inventory"; // which section is active (for USB scanner)
-
-  // Flashlight state
-  let receiveFlashTrack = null;
-  let receiveFlashOn = false;
-  let useFlashTrack = null;
-  let useFlashOn = false;
+  let currentMode = "inventory";
+  let audioCtx = null;
 
   // USB scanner buffer
   let scanBuffer = "";
   let lastCharTime = 0;
-  const SCAN_MAX_INTERVAL = 80; // ms between chars to be considered one scan
-
-  // Beep audio context
-  let audioCtx = null;
+  const SCAN_MAX_INTERVAL = 80;
 
   /***************
    * ELEMENTS
@@ -655,7 +567,9 @@
   const btnReceive = document.getElementById("btnReceive");
   const btnUse = document.getElementById("btnUse");
   const btnInventory = document.getElementById("btnInventory");
-  const btnExport = document.getElementById("btnExport");
+  const btnExportPrint = document.getElementById("btnExportPrint");
+  const btnSyncGithub = document.getElementById("btnSyncGithub");
+  const btnDownloadJson = document.getElementById("btnDownloadJson");
 
   const receiveCard = document.getElementById("receiveCard");
   const useCard = document.getElementById("useCard");
@@ -663,7 +577,6 @@
 
   const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
   const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
-  const receiveFlashBtn = document.getElementById("receiveFlashBtn");
   const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
   const receiveVideo = document.getElementById("receiveVideo");
   const receiveManualUpc = document.getElementById("receiveManualUpc");
@@ -674,7 +587,6 @@
 
   const startUseScanBtn = document.getElementById("startUseScanBtn");
   const stopUseScanBtn = document.getElementById("stopUseScanBtn");
-  const useFlashBtn = document.getElementById("useFlashBtn");
   const useVideoWrapper = document.getElementById("useVideoWrapper");
   const useVideo = document.getElementById("useVideo");
   const useManualUpc = document.getElementById("useManualUpc");
@@ -734,11 +646,8 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }
 
-  function formatDateShort(d) {
-    if (!d) return "";
-    const date = (d instanceof Date) ? d : new Date(d);
-    if (isNaN(date.getTime())) return "";
-    return date.toLocaleDateString();
+  function inventoryArray() {
+    return Object.values(inventory || {});
   }
 
   function getCategorySlug(cat) {
@@ -761,12 +670,9 @@
     }[slug];
   }
 
-  // Beep + vibrate
   function scanFeedback() {
     try {
-      if (navigator.vibrate) {
-        navigator.vibrate(40);
-      }
+      if (navigator.vibrate) navigator.vibrate(40);
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       if (!audioCtx) audioCtx = new AC();
@@ -774,7 +680,7 @@
       const gain = audioCtx.createGain();
       osc.type = "square";
       osc.frequency.value = 880;
-      gain.gain.value = 0.05;
+      gain.gain.value = 0.06;
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
@@ -783,19 +689,15 @@
         osc.disconnect();
         gain.disconnect();
       }, 80);
-    } catch (e) {
-      // ignore audio errors
-    }
+    } catch (e) {}
   }
 
-  // Choose rear camera from device list
   function chooseRearDeviceId(devices) {
     if (!devices.length) return null;
     const back = devices.find(d =>
       /back|rear|environment/i.test(d.label || "")
     );
     if (back) return back.deviceId;
-    // Fallback: last camera is usually rear on phones
     return devices.length > 1 ? devices[devices.length - 1].deviceId : devices[0].deviceId;
   }
 
@@ -812,7 +714,7 @@
       setStatus(loginStatus, "Incorrect PIN.", "error");
       return;
     }
-    localStorage.setItem("brewtopia_pin_ok", "1");
+    localStorage.setItem(PIN_KEY, "1");
     enterMain();
   });
 
@@ -820,7 +722,7 @@
     loginCard.classList.add("hidden");
     mainArea.classList.remove("hidden");
     sessionInfo.textContent = "Unlocked • Local inventory";
-    setStatus(globalStatus, "Inventory is stored locally on this device. Export a printable copy anytime.", "ok");
+    setStatus(globalStatus, "Inventory is stored locally. Use Sync from GitHub and Download Backup as needed.", "ok");
     loadInventoryFromStorage();
     renderInventoryTable();
     updateSummaryLine();
@@ -833,9 +735,8 @@
     setStatus(loginStatus, "Locked. Enter PIN again.", null);
   });
 
-  // Auto-unlock if pin was verified previously
   (function init() {
-    if (localStorage.getItem("brewtopia_pin_ok") === "1") {
+    if (localStorage.getItem(PIN_KEY) === "1") {
       enterMain();
     }
   })();
@@ -865,10 +766,6 @@
   /***************
    * INVENTORY RENDER
    ***************/
-  function inventoryArray() {
-    return Object.values(inventory || {});
-  }
-
   function renderInventoryTable() {
     const rows = inventoryArray();
     const search = invSearch.value.trim().toLowerCase();
@@ -879,26 +776,26 @@
 
     if (search) {
       filtered = filtered.filter(item =>
-        (item.name || "").toLowerCase().includes(search) ||
-        (item.upc || "").includes(search)
+        (item.name || item.Name || "").toLowerCase().includes(search) ||
+        (item.upc || item.UPC || "").includes(search)
       );
     }
 
     if (catFilter !== "all") {
-      filtered = filtered.filter(item => (item.category || "") === catFilter);
+      filtered = filtered.filter(item => (item.category || item.Category || "") === catFilter);
     }
 
     if (stockFilter === "low") {
       filtered = filtered.filter(item => {
-        const q = Number(item.qty || 0);
-        const par = Number(item.par || 0);
+        const q = Number(item.qty ?? item.Qty ?? 0);
+        const par = Number(item.par ?? item.Par ?? 0);
         return par > 0 && q > 0 && q < par;
       });
     } else if (stockFilter === "zero") {
-      filtered = filtered.filter(item => Number(item.qty || 0) === 0);
+      filtered = filtered.filter(item => Number(item.qty ?? item.Qty ?? 0) === 0);
     }
 
-    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    filtered.sort((a, b) => (a.name || a.Name || "").localeCompare(b.name || b.Name || ""));
 
     inventoryBody.innerHTML = "";
 
@@ -906,7 +803,7 @@
       const tr = document.createElement("tr");
       const td = document.createElement("td");
       td.colSpan = 6;
-      td.textContent = "No items match. Try clearing filters or start scanning in Receive Stock.";
+      td.textContent = "No items match. Try clearing filters or sync from GitHub.";
       td.className = "small-text";
       tr.appendChild(td);
       inventoryBody.appendChild(tr);
@@ -918,29 +815,33 @@
     let totalSkus = filtered.length;
 
     filtered.forEach(item => {
-      const q = Number(item.qty || 0);
+      const q = Number(item.qty ?? item.Qty ?? 0);
       totalItems += q;
     });
 
     filtered.forEach(item => {
       const tr = document.createElement("tr");
-      const q = Number(item.qty || 0);
-      const par = Number(item.par || 0);
+      const q = Number(item.qty ?? item.Qty ?? 0);
+      const par = Number(item.par ?? item.Par ?? 0);
 
       if (q === 0) tr.classList.add("stock-zero");
       else if (par > 0 && q < par) tr.classList.add("stock-low");
 
+      const name = item.name ?? item.Name ?? "(unnamed)";
+      const size = item.size ?? item.Size ?? "";
+      const unit = item.unit ?? item.Unit ?? "";
+      const upc = item.upc ?? item.UPC ?? "";
+      const cat = item.category ?? item.Category ?? "Other";
+
       const tdName = document.createElement("td");
-      tdName.innerHTML = `<strong>${item.name || "(unnamed item)"}</strong><br>
-        <span class="small-text">${item.size || ""} ${item.unit || ""}</span>`;
+      tdName.innerHTML = `<strong>${name}</strong><br><span class="small-text">${size} ${unit}</span>`;
 
       const tdUpc = document.createElement("td");
-      tdUpc.textContent = item.upc || "";
+      tdUpc.textContent = upc;
 
       const tdCat = document.createElement("td");
-      const chipClass = getCategoryChipClass(item.category);
-      const catLabel = item.category || "Other";
-      tdCat.innerHTML = `<span class="${chipClass}">${catLabel}</span>`;
+      const chipClass = getCategoryChipClass(cat);
+      tdCat.innerHTML = `<span class="${chipClass}">${cat}</span>`;
 
       const tdQty = document.createElement("td");
       tdQty.textContent = q;
@@ -954,7 +855,7 @@
       editBtn.className = "btn secondary";
       editBtn.style.padding = "4px 10px";
       editBtn.style.fontSize = "11px";
-      editBtn.addEventListener("click", () => openEditItem(item.upc));
+      editBtn.addEventListener("click", () => openEditItem(upc));
       tdEdit.appendChild(editBtn);
 
       tr.appendChild(tdName);
@@ -976,15 +877,13 @@
   function updateSummaryLine() {
     const rows = inventoryArray();
     if (!rows.length) {
-      summaryLine.textContent = "No items tracked yet. Start in “Receive Stock” to scan bottles into inventory.";
+      summaryLine.textContent = "No items tracked yet. Sync from GitHub or start in “Receive Stock”.";
       return;
     }
-    let total = 0;
-    let low = 0;
-    let zero = 0;
+    let total = 0, low = 0, zero = 0;
     rows.forEach(item => {
-      const q = Number(item.qty || 0);
-      const par = Number(item.par || 0);
+      const q = Number(item.qty ?? item.Qty ?? 0);
+      const par = Number(item.par ?? item.Par ?? 0);
       total += q;
       if (q === 0) zero++;
       else if (par > 0 && q < par) low++;
@@ -1002,18 +901,16 @@
     upc = upc.trim();
     if (!upc) return;
 
-    scanFeedback();
-
     const existing = inventory[upc];
     if (!existing) {
-      openNewItem(upc, 1); // new item, starting with qty 1
+      scanFeedback();
+      openNewItem(upc, 1);
       return;
     }
 
-    if (!receiveScans[upc]) {
-      receiveScans[upc] = 0;
-    }
+    if (!receiveScans[upc]) receiveScans[upc] = 0;
     receiveScans[upc]++;
+    scanFeedback();
     renderReceiveList();
   }
 
@@ -1028,7 +925,7 @@
     const parts = keys.map(upc => {
       const count = receiveScans[upc];
       const item = inventory[upc];
-      const name = item ? item.name : "(unnamed item)";
+      const name = item ? (item.name ?? item.Name) : "(unnamed item)";
       return `<div>- <strong>${name}</strong> [${upc}] × ${count}</div>`;
     });
 
@@ -1044,13 +941,16 @@
   });
 
   receiveApplyBtn.addEventListener("click", () => {
-    const now = new Date();
+    const now = new Date().toISOString();
     Object.keys(receiveScans).forEach(upc => {
       const count = receiveScans[upc];
       const item = inventory[upc];
-      if (!item) return; // should not happen
-      item.qty = Number(item.qty || 0) + count;
-      item.last_added = now.toISOString();
+      if (!item) return;
+      const currentQty = Number(item.qty ?? item.Qty ?? 0);
+      item.qty = currentQty + count;
+      item.Qty = item.qty;
+      item.last_added = now;
+      item.Last_Added = now;
     });
     saveInventoryToStorage();
     receiveScans = {};
@@ -1066,27 +966,27 @@
   function useOne(upc) {
     if (!upc) return;
     upc = upc.trim();
-
     const item = inventory[upc];
     if (!item) {
       setStatus(useStatus, "UPC not found. Scan it in Receive Stock first.", "error");
       return;
     }
-
-    scanFeedback();
-
-    const before = Number(item.qty || 0);
+    const before = Number(item.qty ?? item.Qty ?? 0);
     const after = Math.max(0, before - 1);
     item.qty = after;
-    item.last_used = new Date().toISOString();
+    item.Qty = after;
+    const now = new Date().toISOString();
+    item.last_used = now;
+    item.Last_Used = now;
     saveInventoryToStorage();
     renderInventoryTable();
     updateSummaryLine();
+    scanFeedback();
 
-    let msg = `Used 1 of ${item.name || "(item)"} — now ${after}.`;
+    let msg = `Used 1 of ${item.name ?? item.Name ?? "(item)"} — now ${after}.`;
     if (after === 0) msg += " ⚠ Out of stock.";
-    else if (item.par && after < item.par) msg += " ⚠ Below par.";
-    setStatus(useStatus, msg, after === 0 || (item.par && after < item.par) ? "error" : "ok");
+    else if ((item.par ?? item.Par) && after < (item.par ?? item.Par)) msg += " ⚠ Below par.";
+    setStatus(useStatus, msg, after === 0 || ((item.par ?? item.Par) && after < (item.par ?? item.Par)) ? "error" : "ok");
   }
 
   useManualBtn.addEventListener("click", () => {
@@ -1097,14 +997,12 @@
   });
 
   /***************
-   * CAMERA SCANNERS (rear, formats, flash)
+   * CAMERA SCANNERS
    ***************/
   async function startReceiveScanner() {
     if (receiveReader) return;
     try {
       receiveReader = new ZXing.BrowserMultiFormatReader();
-      receiveReader.hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, ALLOWED_FORMATS);
-
       const devices = await receiveReader.listVideoInputDevices();
       if (!devices.length) throw new Error("No cameras found");
       const deviceId = chooseRearDeviceId(devices);
@@ -1112,21 +1010,13 @@
       receiveVideoWrapper.classList.remove("hidden");
       startReceiveScanBtn.disabled = true;
       stopReceiveScanBtn.disabled = false;
-      receiveFlashBtn.disabled = true;
-      receiveFlashBtn.textContent = "🔦 Flash";
 
-      receiveReader.decodeFromVideoDevice(deviceId, receiveVideo, (result, err) => {
+      await receiveReader.decodeFromVideoDevice(deviceId, receiveVideo, (result, err) => {
         if (result) {
           const text = result.getText();
           addReceiveScan(text);
         }
       });
-
-      // Give the stream a moment to attach, then try setting up flash
-      setTimeout(() => {
-        tryInitReceiveFlash();
-      }, 500);
-
       setStatus(receiveStatus, "Camera active. Scan items as they arrive.", "ok");
     } catch (err) {
       console.error(err);
@@ -1140,61 +1030,15 @@
       receiveReader.reset();
       receiveReader = null;
     }
-    // turn off flash if on
-    if (receiveFlashTrack && receiveFlashTrack.getCapabilities && receiveFlashTrack.getCapabilities().torch) {
-      try {
-        receiveFlashTrack.applyConstraints({ advanced: [{ torch: false }] });
-      } catch (e) {}
-    }
-    receiveFlashTrack = null;
-    receiveFlashOn = false;
-    receiveFlashBtn.disabled = true;
-    receiveFlashBtn.textContent = "🔦 Flash";
-
     receiveVideoWrapper.classList.add("hidden");
     startReceiveScanBtn.disabled = false;
     stopReceiveScanBtn.disabled = true;
-  }
-
-  async function toggleReceiveFlash() {
-    if (!receiveFlashTrack) return;
-    const caps = receiveFlashTrack.getCapabilities ? receiveFlashTrack.getCapabilities() : {};
-    if (!caps.torch) {
-      alert("Flashlight not supported on this camera.");
-      return;
-    }
-    receiveFlashOn = !receiveFlashOn;
-    try {
-      await receiveFlashTrack.applyConstraints({ advanced: [{ torch: receiveFlashOn }] });
-      receiveFlashBtn.textContent = receiveFlashOn ? "🔦 Flash On" : "🔦 Flash";
-    } catch (e) {
-      console.error("Flash toggle error", e);
-    }
-  }
-
-  function tryInitReceiveFlash() {
-    try {
-      const stream = receiveVideo.srcObject;
-      if (!stream) return;
-      const tracks = stream.getVideoTracks && stream.getVideoTracks();
-      if (!tracks || !tracks.length) return;
-      const track = tracks[0];
-      if (!track.getCapabilities) return;
-      const caps = track.getCapabilities();
-      if (!caps.torch) return;
-      receiveFlashTrack = track;
-      receiveFlashBtn.disabled = false;
-    } catch (e) {
-      console.error("Init receive flash error", e);
-    }
   }
 
   async function startUseScanner() {
     if (useReader) return;
     try {
       useReader = new ZXing.BrowserMultiFormatReader();
-      useReader.hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, ALLOWED_FORMATS);
-
       const devices = await useReader.listVideoInputDevices();
       if (!devices.length) throw new Error("No cameras found");
       const deviceId = chooseRearDeviceId(devices);
@@ -1202,20 +1046,13 @@
       useVideoWrapper.classList.remove("hidden");
       startUseScanBtn.disabled = true;
       stopUseScanBtn.disabled = false;
-      useFlashBtn.disabled = true;
-      useFlashBtn.textContent = "🔦 Flash";
 
-      useReader.decodeFromVideoDevice(deviceId, useVideo, (result, err) => {
+      await useReader.decodeFromVideoDevice(deviceId, useVideo, (result, err) => {
         if (result) {
           const text = result.getText();
           useOne(text);
         }
       });
-
-      setTimeout(() => {
-        tryInitUseFlash();
-      }, 500);
-
       setStatus(useStatus, "Camera active. Scan empties before tossing.", "ok");
     } catch (err) {
       console.error(err);
@@ -1229,64 +1066,18 @@
       useReader.reset();
       useReader = null;
     }
-    if (useFlashTrack && useFlashTrack.getCapabilities && useFlashTrack.getCapabilities().torch) {
-      try {
-        useFlashTrack.applyConstraints({ advanced: [{ torch: false }] });
-      } catch (e) {}
-    }
-    useFlashTrack = null;
-    useFlashOn = false;
-    useFlashBtn.disabled = true;
-    useFlashBtn.textContent = "🔦 Flash";
-
     useVideoWrapper.classList.add("hidden");
     startUseScanBtn.disabled = false;
     stopUseScanBtn.disabled = true;
   }
 
-  async function toggleUseFlash() {
-    if (!useFlashTrack) return;
-    const caps = useFlashTrack.getCapabilities ? useFlashTrack.getCapabilities() : {};
-    if (!caps.torch) {
-      alert("Flashlight not supported on this camera.");
-      return;
-    }
-    useFlashOn = !useFlashOn;
-    try {
-      await useFlashTrack.applyConstraints({ advanced: [{ torch: useFlashOn }] });
-      useFlashBtn.textContent = useFlashOn ? "🔦 Flash On" : "🔦 Flash";
-    } catch (e) {
-      console.error("Flash toggle error", e);
-    }
-  }
-
-  function tryInitUseFlash() {
-    try {
-      const stream = useVideo.srcObject;
-      if (!stream) return;
-      const tracks = stream.getVideoTracks && stream.getVideoTracks();
-      if (!tracks || !tracks.length) return;
-      const track = tracks[0];
-      if (!track.getCapabilities) return;
-      const caps = track.getCapabilities();
-      if (!caps.torch) return;
-      useFlashTrack = track;
-      useFlashBtn.disabled = false;
-    } catch (e) {
-      console.error("Init use flash error", e);
-    }
-  }
-
   startReceiveScanBtn.addEventListener("click", startReceiveScanner);
   stopReceiveScanBtn.addEventListener("click", stopReceiveScanner);
-  receiveFlashBtn.addEventListener("click", toggleReceiveFlash);
-
   startUseScanBtn.addEventListener("click", startUseScanner);
   stopUseScanBtn.addEventListener("click", stopUseScanner);
-  useFlashBtn.addEventListener("click", toggleUseFlash);
 
   /***************
-   * MODAL: NEW / EDIT ITEM
+   * MODAL
    ***************/
   function openNewItem(upc, initialQty) {
     modalMode = "create";
@@ -1313,16 +1104,16 @@
     modalMode = "edit";
     modalUpcCurrent = upc;
     modalModeLabel.textContent = "Edit Item";
-    modalTitle.textContent = item.name || "Edit item";
+    modalTitle.textContent = item.name ?? item.Name ?? "Edit item";
     modalSubtitle.textContent = "Adjust name, category, par level or quantity as needed.";
     modalUpc.value = upc;
-    modalName.value = item.name || "";
-    modalCategory.value = item.category || "Other";
-    modalSize.value = item.size || "";
-    modalUnit.value = item.unit || "";
-    modalPar.value = item.par != null ? String(item.par) : "";
-    modalQty.value = item.qty != null ? String(item.qty) : "";
-    modalNotes.value = item.notes || "";
+    modalName.value = item.name ?? item.Name ?? "";
+    modalCategory.value = item.category ?? item.Category ?? "Other";
+    modalSize.value = item.size ?? item.Size ?? "";
+    modalUnit.value = item.unit ?? item.Unit ?? "";
+    modalPar.value = (item.par ?? item.Par ?? "") === "" ? "" : String(item.par ?? item.Par ?? "");
+    modalQty.value = (item.qty ?? item.Qty ?? "") === "" ? "" : String(item.qty ?? item.Qty ?? "");
+    modalNotes.value = item.notes ?? item.Notes ?? "";
     setStatus(modalStatus, "", null);
     modalDeleteBtn.classList.remove("hidden");
     itemModalBackdrop.classList.remove("hidden");
@@ -1357,30 +1148,38 @@
 
     if (modalMode === "create") {
       inventory[upc] = {
-        upc,
+        upc: upc,
+        UPC: upc,
         name,
+        Name: name,
         category,
+        Category: category,
         size,
+        Size: size,
         unit,
+        Unit: unit,
         par,
+        Par: par,
         qty,
+        Qty: qty,
         notes,
-        last_added: now
+        Notes: notes,
+        last_added: now,
+        Last_Added: now
       };
-      // If we came from Receive Stock, keep the session count in sync
       if (!receiveScans[upc] && qty > 0) {
         receiveScans[upc] = qty;
       }
       setStatus(modalStatus, "Item created.", "ok");
     } else {
-      const item = inventory[upc] || { upc };
-      item.name = name;
-      item.category = category;
-      item.size = size;
-      item.unit = unit;
-      item.par = par;
-      item.qty = qty;
-      item.notes = notes;
+      const item = inventory[upc] || { upc, UPC: upc };
+      item.name = name; item.Name = name;
+      item.category = category; item.Category = category;
+      item.size = size; item.Size = size;
+      item.unit = unit; item.Unit = unit;
+      item.par = par; item.Par = par;
+      item.qty = qty; item.Qty = qty;
+      item.notes = notes; item.Notes = notes;
       inventory[upc] = item;
       setStatus(modalStatus, "Item updated.", "ok");
     }
@@ -1394,7 +1193,7 @@
 
   modalDeleteBtn.addEventListener("click", () => {
     if (!modalUpcCurrent) return;
-    if (!confirm("Remove this item from inventory? This only affects this device.")) return;
+    if (!confirm("Remove this item from inventory on this device?")) return;
     delete inventory[modalUpcCurrent];
     saveInventoryToStorage();
     renderInventoryTable();
@@ -1405,11 +1204,11 @@
   /***************
    * EXPORT / PRINT
    ***************/
-  btnExport.addEventListener("click", () => {
+  btnExportPrint.addEventListener("click", () => {
     const rows = inventoryArray().sort((a, b) => {
-      const ca = (a.category || "Other").localeCompare(b.category || "Other");
+      const ca = (a.category ?? a.Category ?? "Other").localeCompare(b.category ?? b.Category ?? "Other");
       if (ca !== 0) return ca;
-      return (a.name || "").localeCompare(b.name || "");
+      return (a.name ?? a.Name ?? "").localeCompare(b.name ?? b.Name ?? "");
     });
 
     const now = new Date();
@@ -1444,14 +1243,14 @@
     } else {
       rows.forEach(item => {
         win.document.write("<tr>");
-        win.document.write(`<td>${item.category || ""}</td>`);
-        win.document.write(`<td>${item.name || ""}</td>`);
-        win.document.write(`<td>${item.upc || ""}</td>`);
-        win.document.write(`<td>${item.size || ""}</td>`);
-        win.document.write(`<td>${item.unit || ""}</td>`);
-        win.document.write(`<td>${item.qty != null ? item.qty : ""}</td>`);
-        win.document.write(`<td>${item.par != null ? item.par : ""}</td>`);
-        win.document.write(`<td>${item.notes || ""}</td>`);
+        win.document.write(`<td>${item.category ?? item.Category ?? ""}</td>`);
+        win.document.write(`<td>${item.name ?? item.Name ?? ""}</td>`);
+        win.document.write(`<td>${item.upc ?? item.UPC ?? ""}</td>`);
+        win.document.write(`<td>${item.size ?? item.Size ?? ""}</td>`);
+        win.document.write(`<td>${item.unit ?? item.Unit ?? ""}</td>`);
+        win.document.write(`<td>${item.qty ?? item.Qty ?? ""}</td>`);
+        win.document.write(`<td>${item.par ?? item.Par ?? ""}</td>`);
+        win.document.write(`<td>${item.notes ?? item.Notes ?? ""}</td>`);
         win.document.write("</tr>");
       });
     }
@@ -1459,24 +1258,94 @@
     win.document.write("</tbody></table>");
     win.document.write("</body></html>");
     win.document.close();
-
-    // Auto-open print dialog (user can cancel or "Save as PDF")
     win.focus();
     win.print();
   });
 
   /***************
+   * GITHUB SYNC (READ ONLY) + BACKUP DOWNLOAD
+   ***************/
+  btnSyncGithub.addEventListener("click", async () => {
+    try {
+      setStatus(globalStatus, "Syncing from GitHub…", null);
+      const resp = await fetch(REMOTE_INVENTORY_URL + "?t=" + Date.now());
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      const itemsArr = data.items || [];
+      const next = {};
+      itemsArr.forEach(item => {
+        const upc = item.UPC || item.upc;
+        if (!upc) return;
+        next[upc] = {
+          ...item,
+          upc: upc,
+          UPC: upc,
+          name: item.Name ?? item.name,
+          Name: item.Name ?? item.name,
+          category: item.Category ?? item.category,
+          Category: item.Category ?? item.category,
+          size: item.Size ?? item.size,
+          Size: item.Size ?? item.size,
+          unit: item.Unit ?? item.unit,
+          Unit: item.Unit ?? item.unit,
+          par: item.Par ?? item.par ?? 0,
+          Par: item.Par ?? item.par ?? 0,
+          qty: item.Qty ?? item.qty ?? 0,
+          Qty: item.Qty ?? item.qty ?? 0,
+          notes: item.Notes ?? item.notes ?? "",
+          Notes: item.Notes ?? item.notes ?? ""
+        };
+      });
+      inventory = next;
+      saveInventoryToStorage();
+      renderInventoryTable();
+      updateSummaryLine();
+      setStatus(globalStatus, "Synced from GitHub. Local inventory replaced with latest file.", "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus(globalStatus, "Failed to sync from GitHub: " + err.message, "error");
+    }
+  });
+
+  btnDownloadJson.addEventListener("click", () => {
+    const itemsArr = inventoryArray().map(item => ({
+      UPC: item.UPC ?? item.upc,
+      Name: item.Name ?? item.name,
+      Category: item.Category ?? item.category,
+      Size: item.Size ?? item.size,
+      Unit: item.Unit ?? item.unit,
+      Par: item.Par ?? item.par ?? 0,
+      Qty: item.Qty ?? item.qty ?? 0,
+      Notes: item.Notes ?? item.notes ?? "",
+      Last_Added: item.Last_Added ?? item.last_added ?? "",
+      Last_Used: item.Last_Used ?? item.last_used ?? ""
+    }));
+    const payload = JSON.stringify({ items: itemsArr }, null, 2);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventory.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  /***************
    * USB BARCODE SCANNER SUPPORT
-   * (Option A: based on visible section)
    ***************/
   window.addEventListener("keydown", (e) => {
     const key = e.key;
     const now = Date.now();
-
-    // ignore combos
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-    // digits from scanner (or fast typing)
+    // Ignore when typing into an input/textarea
+    const active = document.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+      return;
+    }
+
     if (/^[0-9]$/.test(key)) {
       if (now - lastCharTime > SCAN_MAX_INTERVAL) {
         scanBuffer = "";
@@ -1491,13 +1360,11 @@
         const upc = scanBuffer;
         scanBuffer = "";
         lastCharTime = 0;
-
         if (currentMode === "receive") {
           addReceiveScan(upc);
         } else if (currentMode === "use") {
           useOne(upc);
         }
-
         e.preventDefault();
         e.stopPropagation();
       } else {
@@ -1505,7 +1372,6 @@
         lastCharTime = 0;
       }
     } else {
-      // Any other key resets buffer for safety
       scanBuffer = "";
       lastCharTime = 0;
     }
