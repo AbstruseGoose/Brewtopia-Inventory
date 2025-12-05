@@ -5,8 +5,8 @@
   <title>Brewtopia Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Quagga2 (WASM build) -->
-  <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.js"></script>
+  <!-- Quagga2 for barcode scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
 
   <style>
     :root {
@@ -19,9 +19,22 @@
       --text-muted: #8b949e;
       --accent: #2f81f7;
       --accent-soft: rgba(47, 129, 247, 0.2);
+
+      --cat-syrup: rgba(244, 114, 182, 0.18);
+      --cat-syrup-border: rgba(244, 114, 182, 0.6);
+      --cat-milk: rgba(56, 189, 248, 0.18);
+      --cat-milk-border: rgba(56, 189, 248, 0.6);
+      --cat-topping: rgba(251, 191, 36, 0.18);
+      --cat-topping-border: rgba(251, 191, 36, 0.6);
+      --cat-cup: rgba(52, 211, 153, 0.18);
+      --cat-cup-border: rgba(52, 211, 153, 0.6);
+      --cat-other: rgba(148, 163, 184, 0.18);
+      --cat-other-border: rgba(148, 163, 184, 0.6);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -31,6 +44,7 @@
       min-height: 100vh;
       display: flex;
       justify-content: center;
+      align-items: stretch;
       padding: 16px;
     }
 
@@ -45,6 +59,10 @@
       font-weight: 600;
     }
 
+    p {
+      margin: 0.2rem 0 0.6rem;
+    }
+
     .card {
       background: var(--bg-card);
       border-radius: 16px;
@@ -55,6 +73,13 @@
         0 18px 45px rgba(0, 0, 0, 0.55),
         0 0 0 1px rgba(255, 255, 255, 0.02);
       backdrop-filter: blur(18px);
+    }
+
+    .card-soft {
+      background: var(--bg-card-soft);
+      border-radius: 14px;
+      padding: 14px 16px;
+      border: 1px solid rgba(48, 54, 61, 0.9);
     }
 
     .btn {
@@ -70,22 +95,39 @@
       cursor: pointer;
       background: linear-gradient(135deg, #238636, #2ea043);
       color: #f0fdf4;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 18px rgba(34,197,94,0.35);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease, opacity 0.08s ease;
       white-space: nowrap;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 10px 22px rgba(34,197,94,0.55);
+    }
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 3px 8px rgba(34,197,94,0.5);
     }
 
     .btn.secondary {
       background: linear-gradient(135deg, #21262d, #161b22);
       color: var(--text-primary);
       border-color: #30363d;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 8px 18px rgba(0,0,0,0.4);
+    }
+    .btn.secondary:hover {
+      background: linear-gradient(135deg, #262b33, #161b22);
     }
 
     .btn.danger {
       background: linear-gradient(135deg, #b91c1c, #ef4444);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 8px 18px rgba(239,68,68,0.4);
     }
 
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.55;
       cursor: default;
+      transform: none;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 0 rgba(0,0,0,0);
     }
 
     input, select, textarea {
@@ -97,6 +139,80 @@
       color: var(--text-primary);
       font-size: 14px;
       margin: 4px 0 10px;
+      outline: none;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent-soft);
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .small-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .muted {
+      color: var(--text-muted);
+    }
+
+    .grid-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .flex-row > * {
+      flex: 1;
+      min-width: 0;
+    }
+    .flex-row.right {
+      justify-content: flex-end;
+    }
+
+    .status {
+      font-size: 12px;
+      margin-top: 6px;
+      color: var(--text-muted);
+    }
+    .status.ok {
+      color: #4ade80;
+    }
+    .status.error {
+      color: #f97373;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .pill {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #30363d;
+      background: #010409;
+      color: var(--text-muted);
     }
 
     .video-wrapper {
@@ -109,6 +225,15 @@
       min-height: 200px;
     }
 
+    /* Quagga will inject its own <video> + <canvas> here */
+    #receiveVideoWrapper video,
+    #receiveVideoWrapper canvas,
+    #useVideoWrapper video,
+    #useVideoWrapper canvas {
+      width: 100%;
+      display: block;
+    }
+
     .scan-overlay {
       position: absolute;
       inset: 14%;
@@ -118,139 +243,316 @@
       pointer-events: none;
     }
 
-    .hidden { display: none !important; }
+    .scan-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
 
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { padding: 4px 0; text-align: left; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid #21262d;
+      padding: 6px 4px;
+      text-align: left;
+    }
+    th {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
 
+    tr.stock-zero {
+      background: linear-gradient(to right, rgba(127, 29, 29, 0.38), transparent);
+    }
+    tr.stock-low {
+      background: linear-gradient(to right, rgba(180, 83, 9, 0.28), transparent);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #30363d;
+      background: #020617;
+    }
+    .chip-cat-syrup {
+      background: var(--cat-syrup);
+      border-color: var(--cat-syrup-border);
+      color: #f472b6;
+    }
+    .chip-cat-milk {
+      background: var(--cat-milk);
+      border-color: var(--cat-milk-border);
+      color: #38bdf8;
+    }
+    .chip-cat-topping {
+      background: var(--cat-topping);
+      border-color: var(--cat-topping-border);
+      color: #facc15;
+    }
+    .chip-cat-cup {
+      background: var(--cat-cup);
+      border-color: var(--cat-cup-border);
+      color: #4ade80;
+    }
+    .chip-cat-other {
+      background: var(--cat-other);
+      border-color: var(--cat-other-border);
+      color: #e5e7eb;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      background: #111827;
+      color: var(--text-muted);
+    }
+    .badge.out {
+      background: rgba(127,29,29,0.8);
+      color: #fee2e2;
+    }
+    .badge.low {
+      background: rgba(180,83,9,0.85);
+      color: #fef3c7;
+    }
+    .badge.ok {
+      background: rgba(22,163,74,0.85);
+      color: #dcfce7;
+    }
+
+    .muted-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .inventory-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .inventory-toolbar > * {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 40;
+      backdrop-filter: blur(6px);
+    }
+    .modal {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(13,17,23,0.98);
+      border-radius: 16px;
+      border: 1px solid rgba(48,54,61,0.95);
+      box-shadow:
+        0 25px 60px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(255,255,255,0.03);
+      padding: 16px 18px 14px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
   </style>
 </head>
-
 <body>
 <div class="app">
 
   <!-- LOGIN -->
   <div id="loginCard" class="card">
     <h1>Brewtopia Inventory</h1>
-
+    <p class="small-text">
+      Simple, color-coded inventory for the shop. Protected with a PIN so only staff can change counts.
+    </p>
     <label for="pinInput">PIN</label>
     <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
-
     <button id="loginBtn" class="btn">Unlock</button>
-    <div id="loginStatus" style="margin-top:6px;"></div>
+    <div id="loginStatus" class="status"></div>
+    <p class="small-text" style="margin-top:10px;">
+      Data is stored locally on this device and persists until you clear it. You can export a printable copy anytime.
+    </p>
   </div>
 
   <!-- MAIN -->
   <div id="mainArea" class="hidden">
-
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2>Brewtopia Inventory</h2>
-        <button id="lockBtn" class="btn secondary" style="padding:6px 14px;">Lock</button>
+      <div class="flex-row" style="align-items:flex-start;">
+        <div style="flex: 2;">
+          <h2 style="margin-bottom:4px;">Brewtopia Inventory</h2>
+          <p class="small-text" id="summaryLine">
+            Track syrups, milks, toppings, cups and more — scan bottles as you receive and use them.
+          </p>
+        </div>
+        <div style="flex:1;text-align:right;">
+          <div class="small-text muted">Session</div>
+          <div class="small-text" id="sessionInfo">PIN OK</div>
+          <button id="lockBtn" class="btn secondary" style="margin-top:6px;padding:5px 11px;font-size:12px;">Lock</button>
+        </div>
       </div>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+      <div class="grid-buttons">
         <button class="btn" id="btnReceive">📦 Receive Stock</button>
         <button class="btn secondary" id="btnUse">🥤 Use Item</button>
         <button class="btn secondary" id="btnInventory">📋 Inventory</button>
-        <button class="btn secondary" id="btnExport">🖨️ Export</button>
+        <button class="btn secondary" id="btnExport">🖨️ Export / Print</button>
       </div>
+
+      <div class="pill-row">
+        <span class="pill">🟢 Above par</span>
+        <span class="pill">🟡 Below par</span>
+        <span class="pill">🔴 Out of stock</span>
+        <span class="pill">🎨 Pastel tags by category</span>
+      </div>
+
+      <div id="globalStatus" class="status"></div>
     </div>
 
-    <!-- RECEIVE -->
+    <!-- RECEIVE STOCK -->
     <div id="receiveCard" class="card hidden">
-      <h3>Receive Stock</h3>
+      <h3>Receive Stock (Bulk Scan)</h3>
+      <p class="small-text">
+        As new bottles/cases arrive, scan each once. Unknown barcodes will prompt you to describe the item.
+      </p>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn" id="startReceiveScanBtn">🎥 Start Camera</button>
-        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop</button>
-        <button class="btn secondary" id="receiveFlashBtn" disabled>🔦 Flash</button>
+      <div class="flex-row">
+        <button class="btn" id="startReceiveScanBtn">🎥 Camera Scan</button>
+        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop Camera</button>
       </div>
-
       <div id="receiveVideoWrapper" class="video-wrapper hidden">
-        <!-- Quagga will inject a video element here -->
+        <!-- Quagga injects video/canvas here -->
         <div class="scan-overlay"></div>
       </div>
 
-      <div style="margin-top:8px;">
-        <input id="receiveManualUpc" type="text" placeholder="Enter or scan UPC" />
-        <button id="receiveManualBtn" class="btn secondary">Add</button>
+      <div class="scan-hint">
+        No camera? Use a handheld barcode scanner or type UPC:
+      </div>
+      <div class="flex-row">
+        <input id="receiveManualUpc" type="text" placeholder="Scan or type UPC" />
+        <button class="btn secondary" id="receiveManualBtn">Add</button>
       </div>
 
-      <div id="receiveList" style="margin-top:12px;font-size:14px;color:#aaa;">
-        No items scanned yet.
+      <div class="card-soft" style="margin-top:10px;">
+        <div class="muted-label">Scanned this session</div>
+        <div id="receiveList" class="small-text">No items scanned yet.</div>
+        <button class="btn" id="receiveApplyBtn" style="margin-top:10px;" disabled>Apply to Inventory</button>
+        <div id="receiveStatus" class="status"></div>
       </div>
-
-      <button id="receiveApplyBtn" class="btn" style="margin-top:12px;" disabled>Apply</button>
-      <div id="receiveStatus" style="margin-top:8px;"></div>
     </div>
 
-    <!-- USE -->
+    <!-- USE ITEM -->
     <div id="useCard" class="card hidden">
-      <h3>Use Item</h3>
+      <h3>Use Item (Scan Out)</h3>
+      <p class="small-text">
+        When you finish a bottle or container, scan it before tossing. Each scan subtracts 1 from inventory.
+      </p>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn" id="startUseScanBtn">🎥 Start Camera</button>
-        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop</button>
-        <button class="btn secondary" id="useFlashBtn" disabled>🔦 Flash</button>
+      <div class="flex-row">
+        <button class="btn" id="startUseScanBtn">🎥 Camera Scan</button>
+        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop Camera</button>
       </div>
-
       <div id="useVideoWrapper" class="video-wrapper hidden">
-        <!-- Quagga will inject a video element here -->
+        <!-- Quagga injects video/canvas here -->
         <div class="scan-overlay"></div>
       </div>
 
-      <div style="margin-top:8px%;">
-        <input id="useManualUpc" type="text" placeholder="Enter or scan UPC" />
-        <button id="useManualBtn" class="btn secondary">Use 1</button>
+      <div class="scan-hint">
+        Or use a handheld scanner / type UPC:
+      </div>
+      <div class="flex-row">
+        <input id="useManualUpc" type="text" placeholder="Scan or type UPC" />
+        <button class="btn secondary" id="useManualBtn">Use 1</button>
       </div>
 
-      <div id="useStatus" style="margin-top:8px;"></div>
+      <div id="useStatus" class="status"></div>
     </div>
 
-    <!-- INVENTORY -->
+    <!-- INVENTORY LIST -->
     <div id="inventoryCard" class="card hidden">
-      <h3>Inventory</h3>
+      <h3>Inventory Levels</h3>
+      <div class="inventory-toolbar">
+        <input id="invSearch" type="text" placeholder="Search by name or UPC" />
+        <select id="invCategoryFilter">
+          <option value="all">All categories</option>
+          <option value="Syrup">Syrup</option>
+          <option value="Milk">Milk</option>
+          <option value="Topping">Topping</option>
+          <option value="Cup">Cup</option>
+          <option value="Other">Other</option>
+        </select>
+        <select id="invStockFilter">
+          <option value="all">Any stock</option>
+          <option value="low">Low / below par</option>
+          <option value="zero">Out of stock</option>
+        </select>
+      </div>
 
-      <input id="invSearch" type="text" placeholder="Search items…" />
-
-      <table style="margin-top:12px;">
-        <thead>
+      <div id="inventoryTableWrapper" style="margin-top:8px;max-height:360px;overflow:auto;border-radius:12px;border:1px solid #21262d;">
+        <table>
+          <thead>
           <tr>
             <th>Item</th>
             <th>UPC</th>
-            <th>Category</th>
+            <th>Cat.</th>
             <th>Qty</th>
             <th>Par</th>
             <th></th>
           </tr>
-        </thead>
-        <tbody id="inventoryBody"></tbody>
-      </table>
-
-      <div id="inventoryStatus" style="margin-top:8px;color:#8b949e;"></div>
+          </thead>
+          <tbody id="inventoryBody">
+          <tr><td colspan="6" class="small-text">No inventory yet. Start by scanning items in “Receive Stock”.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="inventoryStatus" class="status"></div>
     </div>
   </div>
 
-  <!-- MODAL -->
-  <div id="itemModalBackdrop" class="hidden" style="
-    position:fixed;inset:0;background:rgba(0,0,0,0.55);
-    display:flex;justify-content:center;align-items:center;
-    z-index:999;">
-    <div style="
-      width:100%;max-width:480px;
-      background:#111;
-      border-radius:14px;
-      padding:16px;border:1px solid #333;
-      box-shadow:0 8px 28px rgba(0, 0, 0, 0.6);">
-
-      <h3 id="modalTitle">New Item</h3>
-      <div id="modalSubtitle" style="font-size:13px;color:#aaa;margin-bottom:8px;"></div>
+  <!-- MODAL: NEW / EDIT ITEM -->
+  <div id="itemModalBackdrop" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="muted-label" id="modalModeLabel">New Item</div>
+          <h3 id="modalTitle">Describe Item</h3>
+        </div>
+        <button id="modalCloseBtn" class="btn secondary" style="padding:4px 10px;font-size:11px;">✕</button>
+      </div>
+      <div class="small-text" id="modalSubtitle"></div>
 
       <label>UPC</label>
       <input id="modalUpc" type="text" readonly />
 
-      <label>Name</label>
+      <label>Item name</label>
       <input id="modalName" type="text" placeholder="e.g. Vanilla Syrup" />
 
       <label>Category</label>
@@ -263,751 +565,753 @@
       </select>
 
       <label>Size</label>
-      <input id="modalSize" type="text" placeholder="750ml, gallon, etc" />
+      <input id="modalSize" type="text" placeholder="e.g. 750ml, gallon" />
 
       <label>Unit</label>
-      <input id="modalUnit" type="text" placeholder="bottle, jug, case…" />
+      <input id="modalUnit" type="text" placeholder="e.g. bottle, jug, bag, case" />
 
-      <label>Par</label>
-      <input id="modalPar" type="number" min="0" placeholder="6" />
-
-      <label>Quantity</label>
-      <input id="modalQty" type="number" min="0" placeholder="1" />
-
-      <label>Notes</label>
-      <textarea id="modalNotes" rows="2" placeholder="Optional notes"></textarea>
-
-      <div style="display:flex;justify-content:space-between;margin-top:14px;">
-        <button id="modalDeleteBtn" class="btn danger hidden">Delete</button>
+      <div class="flex-row">
         <div>
-          <button id="modalCancelBtn" class="btn secondary">Cancel</button>
-          <button id="modalSaveBtn" class="btn">Save</button>
+          <label>Par level (target qty)</label>
+          <input id="modalPar" type="number" min="0" placeholder="e.g. 6" />
+        </div>
+        <div>
+          <label>Quantity</label>
+          <input id="modalQty" type="number" min="0" placeholder="e.g. 1" />
         </div>
       </div>
 
-      <div id="modalStatus" style="margin-top:8px;"></div>
+      <label>Notes</label>
+      <textarea id="modalNotes" rows="2" placeholder="Optional notes (brand, flavor details, etc.)"></textarea>
+
+      <div class="modal-actions">
+        <button id="modalDeleteBtn" class="btn danger hidden">Delete</button>
+        <div style="flex:1;"></div>
+        <button id="modalCancelBtn" class="btn secondary">Cancel</button>
+        <button id="modalSaveBtn" class="btn">Save</button>
+      </div>
+
+      <div id="modalStatus" class="status"></div>
     </div>
   </div>
 
-</div> <!-- end .app -->
+</div>
 
 <script>
-/*********************************************************
- * CONFIG
- *********************************************************/
-const PIN = "6251";
-const STORAGE_KEY = "brewtopia_inventory_localcache_v1";
+  /***************
+   * CONFIG
+   ***************/
+  const PIN = "6251";
+  const STORAGE_KEY = "brewtopia_inventory_v1";
 
-/*********************************************************
- * STATE
- *********************************************************/
-let inventory = {};        // full inventory
-let receiveScans = {};     // UPC → count (Receive Stock)
+  /***************
+   * STATE
+   ***************/
+  let inventory = {};        // upc -> item
+  let receiveScans = {};     // upc -> count (current session)
+  let modalMode = "create";  // or "edit"
+  let modalUpcCurrent = null;
 
-let quaggaRunning = false;
-let quaggaMode = null;     // "receive" or "use"
+  // Quagga state
+  let currentScanMode = null; // "receive" | "use" | null
+  let quaggaInitialized = false;
 
-let lastScanCode = null;
-let lastScanTime = 0;
-const SCAN_COOLDOWN = 800; // ms
+  /***************
+   * ELEMENTS
+   ***************/
+  const loginCard = document.getElementById("loginCard");
+  const mainArea = document.getElementById("mainArea");
+  const pinInput = document.getElementById("pinInput");
+  const loginBtn = document.getElementById("loginBtn");
+  const loginStatus = document.getElementById("loginStatus");
+  const lockBtn = document.getElementById("lockBtn");
+  const globalStatus = document.getElementById("globalStatus");
+  const sessionInfo = document.getElementById("sessionInfo");
+  const summaryLine = document.getElementById("summaryLine");
 
-let receiveTorchOn = false;
-let useTorchOn = false;
+  const btnReceive = document.getElementById("btnReceive");
+  const btnUse = document.getElementById("btnUse");
+  const btnInventory = document.getElementById("btnInventory");
+  const btnExport = document.getElementById("btnExport");
 
-/*********************************************************
- * ELEMENTS
- *********************************************************/
-const loginCard = document.getElementById("loginCard");
-const mainArea = document.getElementById("mainArea");
-const pinInput = document.getElementById("pinInput");
-const loginBtn = document.getElementById("loginBtn");
-const loginStatus = document.getElementById("loginStatus");
-const lockBtn = document.getElementById("lockBtn");
+  const receiveCard = document.getElementById("receiveCard");
+  const useCard = document.getElementById("useCard");
+  const inventoryCard = document.getElementById("inventoryCard");
 
-const btnReceive = document.getElementById("btnReceive");
-const btnUse = document.getElementById("btnUse");
-const btnInventory = document.getElementById("btnInventory");
-const btnExport = document.getElementById("btnExport");
+  const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
+  const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
+  const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
+  const receiveManualUpc = document.getElementById("receiveManualUpc");
+  const receiveManualBtn = document.getElementById("receiveManualBtn");
+  const receiveList = document.getElementById("receiveList");
+  const receiveApplyBtn = document.getElementById("receiveApplyBtn");
+  const receiveStatus = document.getElementById("receiveStatus");
 
-const receiveCard = document.getElementById("receiveCard");
-const useCard = document.getElementById("useCard");
-const inventoryCard = document.getElementById("inventoryCard");
+  const startUseScanBtn = document.getElementById("startUseScanBtn");
+  const stopUseScanBtn = document.getElementById("stopUseScanBtn");
+  const useVideoWrapper = document.getElementById("useVideoWrapper");
+  const useManualUpc = document.getElementById("useManualUpc");
+  const useManualBtn = document.getElementById("useManualBtn");
+  const useStatus = document.getElementById("useStatus");
 
-const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
-const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
-const receiveFlashBtn = document.getElementById("receiveFlashBtn");
-const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
-const receiveManualUpc = document.getElementById("receiveManualUpc");
-const receiveManualBtn = document.getElementById("receiveManualBtn");
-const receiveList = document.getElementById("receiveList");
-const receiveApplyBtn = document.getElementById("receiveApplyBtn");
-const receiveStatus = document.getElementById("receiveStatus");
+  const invSearch = document.getElementById("invSearch");
+  const invCategoryFilter = document.getElementById("invCategoryFilter");
+  const invStockFilter = document.getElementById("invStockFilter");
+  const inventoryBody = document.getElementById("inventoryBody");
+  const inventoryStatus = document.getElementById("inventoryStatus");
 
-const startUseScanBtn = document.getElementById("startUseScanBtn");
-const stopUseScanBtn = document.getElementById("stopUseScanBtn");
-const useFlashBtn = document.getElementById("useFlashBtn");
-const useVideoWrapper = document.getElementById("useVideoWrapper");
-const useManualUpc = document.getElementById("useManualUpc");
-const useManualBtn = document.getElementById("useManualBtn");
-const useStatus = document.getElementById("useStatus");
+  const itemModalBackdrop = document.getElementById("itemModalBackdrop");
+  const modalModeLabel = document.getElementById("modalModeLabel");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalSubtitle = document.getElementById("modalSubtitle");
+  const modalUpc = document.getElementById("modalUpc");
+  const modalName = document.getElementById("modalName");
+  const modalCategory = document.getElementById("modalCategory");
+  const modalSize = document.getElementById("modalSize");
+  const modalUnit = document.getElementById("modalUnit");
+  const modalPar = document.getElementById("modalPar");
+  const modalQty = document.getElementById("modalQty");
+  const modalNotes = document.getElementById("modalNotes");
+  const modalSaveBtn = document.getElementById("modalSaveBtn");
+  const modalCancelBtn = document.getElementById("modalCancelBtn");
+  const modalCloseBtn = document.getElementById("modalCloseBtn");
+  const modalDeleteBtn = document.getElementById("modalDeleteBtn");
+  const modalStatus = document.getElementById("modalStatus");
 
-const invSearch = document.getElementById("invSearch");
-const inventoryBody = document.getElementById("inventoryBody");
-const inventoryStatus = document.getElementById("inventoryStatus");
-
-const itemModalBackdrop = document.getElementById("itemModalBackdrop");
-const modalTitle = document.getElementById("modalTitle");
-const modalSubtitle = document.getElementById("modalSubtitle");
-const modalUpc = document.getElementById("modalUpc");
-const modalName = document.getElementById("modalName");
-const modalCategory = document.getElementById("modalCategory");
-const modalSize = document.getElementById("modalSize");
-const modalUnit = document.getElementById("modalUnit");
-const modalPar = document.getElementById("modalPar");
-const modalQty = document.getElementById("modalQty");
-const modalNotes = document.getElementById("modalNotes");
-const modalSaveBtn = document.getElementById("modalSaveBtn");
-const modalCancelBtn = document.getElementById("modalCancelBtn");
-const modalDeleteBtn = document.getElementById("modalDeleteBtn");
-const modalStatus = document.getElementById("modalStatus");
-
-/*********************************************************
- * UTIL
- *********************************************************/
-function setStatus(el, msg, good = false) {
-  el.textContent = msg;
-  el.style.color = good ? "#4ade80" : "#f87171";
-}
-
-function beep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.frequency.value = 880;
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start();
-    g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.15);
-  } catch (e) {}
-}
-
-function vibrate() {
-  if (navigator.vibrate) navigator.vibrate(70);
-}
-
-/*********************************************************
- * LOGIN
- *********************************************************/
-loginBtn.addEventListener("click", () => {
-  if (pinInput.value.trim() === PIN) {
-    loginCard.classList.add("hidden");
-    mainArea.classList.remove("hidden");
-    loadInventoryLocal();
-    renderInventoryTable();
-  } else {
-    setStatus(loginStatus, "Incorrect PIN");
-  }
-});
-
-lockBtn.addEventListener("click", () => {
-  mainArea.classList.add("hidden");
-  loginCard.classList.remove("hidden");
-});
-
-/*********************************************************
- * LOCAL STORAGE CACHE
- *********************************************************/
-function loadInventoryLocal() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    inventory = {};
-    return;
-  }
-  try {
-    inventory = JSON.parse(raw);
-  } catch {
-    inventory = {};
-  }
-}
-
-function saveInventoryLocal() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
-}
-
-/*********************************************************
- * NAVIGATION
- *********************************************************/
-btnReceive.addEventListener("click", () => showSection("receive"));
-btnUse.addEventListener("click", () => showSection("use"));
-btnInventory.addEventListener("click", () => showSection("inventory"));
-
-function showSection(name) {
-  receiveCard.classList.add("hidden");
-  useCard.classList.add("hidden");
-  inventoryCard.classList.add("hidden");
-
-  stopQuagga();
-
-  if (name === "receive") receiveCard.classList.remove("hidden");
-  if (name === "use") useCard.classList.remove("hidden");
-  if (name === "inventory") inventoryCard.classList.remove("hidden");
-
-  if (name === "inventory") renderInventoryTable();
-}
-
-/*********************************************************
- * RECEIVE STOCK
- *********************************************************/
-function addReceiveScan(upc) {
-  if (!upc) return;
-  upc = upc.trim();
-
-  const existing = inventory[upc];
-
-  if (!existing) {
-    openNewItem(upc, 1);
-    return;
+  /***************
+   * UTIL
+   ***************/
+  function setStatus(el, msg, type) {
+    el.textContent = msg || "";
+    el.classList.remove("ok", "error");
+    if (type) el.classList.add(type);
   }
 
-  receiveScans[upc] = (receiveScans[upc] || 0) + 1;
-  beep();
-  vibrate();
-  renderReceiveList();
-}
-
-function renderReceiveList() {
-  const keys = Object.keys(receiveScans);
-  if (!keys.length) {
-    receiveList.textContent = "No items scanned yet.";
-    receiveApplyBtn.disabled = true;
-    return;
+  function loadInventoryFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        inventory = {};
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      inventory = parsed.items || {};
+    } catch (e) {
+      console.error("Failed to load inventory", e);
+      inventory = {};
+    }
   }
 
-  receiveApplyBtn.disabled = false;
+  function saveInventoryToStorage() {
+    const payload = { items: inventory };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
 
-  receiveList.innerHTML = keys
-    .map(upc => {
-      const item = inventory[upc];
-      return `<div>- <strong>${item?.name || "(Unnamed item)"}</strong> [${upc}] × ${receiveScans[upc]}</div>`;
-    })
-    .join("");
-}
+  function inventoryArray() {
+    return Object.values(inventory || {});
+  }
 
-receiveManualBtn.addEventListener("click", () => {
-  const upc = receiveManualUpc.value;
-  addReceiveScan(upc);
-  receiveManualUpc.value = "";
-});
+  function getCategorySlug(cat) {
+    const c = (cat || "").toLowerCase();
+    if (c === "syrup") return "syrup";
+    if (c === "milk") return "milk";
+    if (c === "topping") return "topping";
+    if (c === "cup" || c === "cups") return "cup";
+    return "other";
+  }
 
-/*********************************************************
- * APPLY RECEIVE
- *********************************************************/
-receiveApplyBtn.addEventListener("click", () => {
-  const now = new Date().toISOString();
+  function getCategoryChipClass(cat) {
+    const slug = getCategorySlug(cat);
+    return {
+      syrup: "chip chip-cat-syrup",
+      milk: "chip chip-cat-milk",
+      topping: "chip chip-cat-topping",
+      cup: "chip chip-cat-cup",
+      other: "chip chip-cat-other"
+    }[slug];
+  }
 
-  Object.keys(receiveScans).forEach(upc => {
-    const item = inventory[upc];
-    if (!item) return;
-    item.qty = Number(item.qty || 0) + receiveScans[upc];
-    item.last_added = now;
+  function updateSummaryLine() {
+    const rows = inventoryArray();
+    if (!rows.length) {
+      summaryLine.textContent = "No items tracked yet. Start in “Receive Stock” to scan bottles into inventory.";
+      return;
+    }
+    let total = 0;
+    let low = 0;
+    let zero = 0;
+    rows.forEach(item => {
+      const q = Number(item.qty || 0);
+      const par = Number(item.par || 0);
+      total += q;
+      if (q === 0) zero++;
+      else if (par > 0 && q < par) low++;
+    });
+    summaryLine.textContent =
+      `Tracking ${rows.length} items • ${total} units. ` +
+      `${low ? low + " low" : "No low stock"} • ${zero ? zero + " out" : "None out of stock"}.`;
+  }
+
+  /***************
+   * LOGIN
+   ***************/
+  loginBtn.addEventListener("click", () => {
+    const pin = pinInput.value.trim();
+    if (!pin) {
+      setStatus(loginStatus, "Enter PIN to unlock.", "error");
+      return;
+    }
+    if (pin !== PIN) {
+      setStatus(loginStatus, "Incorrect PIN.", "error");
+      return;
+    }
+    localStorage.setItem("brewtopia_pin_ok", "1");
+    enterMain();
   });
 
-  receiveScans = {};
-  saveInventoryLocal();
-  renderReceiveList();
-  renderInventoryTable();
-
-  setStatus(receiveStatus, "Inventory updated.", true);
-});
-
-/*********************************************************
- * USE ITEM
- *********************************************************/
-function useOne(upc) {
-  if (!upc) return;
-  upc = upc.trim();
-
-  const item = inventory[upc];
-  if (!item) {
-    setStatus(useStatus, "Unknown UPC — scan into Receive Stock first.");
-    return;
+  function enterMain() {
+    loginCard.classList.add("hidden");
+    mainArea.classList.remove("hidden");
+    sessionInfo.textContent = "Unlocked • Local inventory";
+    setStatus(globalStatus, "Inventory is stored locally on this device. Export a printable copy anytime.", "ok");
+    loadInventoryFromStorage();
+    renderInventoryTable();
+    updateSummaryLine();
   }
 
-  const before = Number(item.qty || 0);
-  const after = Math.max(0, before - 1);
-  item.qty = after;
-  item.last_used = new Date().toISOString();
+  lockBtn.addEventListener("click", () => {
+    stopScanner(); // make sure camera is stopped if active
+    mainArea.classList.add("hidden");
+    loginCard.classList.remove("hidden");
+    setStatus(loginStatus, "Locked. Enter PIN again.", null);
+  });
 
-  saveInventoryLocal();
-  renderInventoryTable();
+  // Auto-unlock if pin was verified previously
+  (function init() {
+    if (localStorage.getItem("brewtopia_pin_ok") === "1") {
+      enterMain();
+    }
+  })();
 
-  beep();
-  vibrate();
+  /***************
+   * NAV
+   ***************/
+  btnReceive.addEventListener("click", () => showSection("receive"));
+  btnUse.addEventListener("click", () => showSection("use"));
+  btnInventory.addEventListener("click", () => showSection("inventory"));
 
-  if (after === 0) {
-    setStatus(useStatus, `${item.name} is now OUT of stock.`);
-  } else {
-    setStatus(useStatus, `${item.name} → ${after}`, true);
-  }
-}
+  function showSection(name) {
+    receiveCard.classList.add("hidden");
+    useCard.classList.add("hidden");
+    inventoryCard.classList.add("hidden");
 
-useManualBtn.addEventListener("click", () => {
-  const upc = useManualUpc.value;
-  useOne(upc);
-  useManualUpc.value = "";
-});
+    // Stop camera whenever switching sections
+    stopScanner();
 
-/*********************************************************
- * QUAGGA2 — SHARED SCANNER
- *********************************************************/
-function getQuaggaConfig(mode) {
-  const target = mode === "receive" ? receiveVideoWrapper : useVideoWrapper;
-  return {
-    inputStream: {
-      type: "LiveStream",
-      target: target,
-      constraints: {
-        facingMode: "environment",
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
-    },
-    numOfWorkers: navigator.hardwareConcurrency
-      ? Math.min(4, navigator.hardwareConcurrency)
-      : 2,
-    locator: {
-      patchSize: "medium",
-      halfSample: false
-    },
-    decoder: {
-      readers: [
-        "upc_reader",
-        "upc_e_reader",
-        "ean_reader",
-        "ean_8_reader",
-        "code_128_reader",
-        "code_39_reader",
-        "code_93_reader",
-        "itf_reader"
-      ]
-    },
-    locate: true
-  };
-}
-
-function handleQuaggaDetected(result) {
-  if (!result || !result.codeResult || !result.codeResult.code) return;
-  const code = result.codeResult.code.trim();
-  const now = Date.now();
-
-  if (!code) return;
-
-  if (code === lastScanCode && now - lastScanTime < SCAN_COOLDOWN) {
-    return; // debounce duplicates
+    if (name === "receive") receiveCard.classList.remove("hidden");
+    if (name === "use") useCard.classList.remove("hidden");
+    if (name === "inventory") inventoryCard.classList.remove("hidden");
   }
 
-  lastScanCode = code;
-  lastScanTime = now;
+  /***************
+   * INVENTORY RENDER
+   ***************/
+  function renderInventoryTable() {
+    const rows = inventoryArray();
+    const search = invSearch.value.trim().toLowerCase();
+    const catFilter = invCategoryFilter.value;
+    const stockFilter = invStockFilter.value;
 
-  if (quaggaMode === "receive") {
-    addReceiveScan(code);
-  } else if (quaggaMode === "use") {
-    useOne(code);
-  }
-}
+    let filtered = rows.slice();
 
-function startQuagga(mode) {
-  if (quaggaRunning) return;
-  if (!window.Quagga) {
-    if (mode === "receive") setStatus(receiveStatus, "Quagga2 not loaded.", false);
-    else setStatus(useStatus, "Quagga2 not loaded.", false);
-    return;
-  }
+    if (search) {
+      filtered = filtered.filter(item =>
+        (item.name || "").toLowerCase().includes(search) ||
+        (item.upc || "").includes(search)
+      );
+    }
 
-  quaggaMode = mode;
-  const config = getQuaggaConfig(mode);
+    if (catFilter !== "all") {
+      filtered = filtered.filter(item => (item.category || "") === catFilter);
+    }
 
-  Quagga.init(config, err => {
-    if (err) {
-      console.error(err);
-      if (mode === "receive") setStatus(receiveStatus, "Camera error: " + err.message, false);
-      else setStatus(useStatus, "Camera error: " + err.message, false);
+    if (stockFilter === "low") {
+      filtered = filtered.filter(item => {
+        const q = Number(item.qty || 0);
+        const par = Number(item.par || 0);
+        return par > 0 && q > 0 && q < par;
+      });
+    } else if (stockFilter === "zero") {
+      filtered = filtered.filter(item => Number(item.qty || 0) === 0);
+    }
+
+    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+    inventoryBody.innerHTML = "";
+
+    if (!filtered.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.textContent = "No items match. Try clearing filters or start scanning in Receive Stock.";
+      td.className = "small-text";
+      tr.appendChild(td);
+      inventoryBody.appendChild(tr);
+      inventoryStatus.textContent = "";
       return;
     }
 
-    Quagga.start();
-    quaggaRunning = true;
-    Quagga.onDetected(handleQuaggaDetected);
+    let totalItems = 0;
+    let totalSkus = filtered.length;
 
-    if (mode === "receive") {
-      receiveVideoWrapper.classList.remove("hidden");
-      startReceiveScanBtn.disabled = true;
-      stopReceiveScanBtn.disabled = false;
-      receiveFlashBtn.disabled = false;
-      setStatus(receiveStatus, "Camera active. Scan items as they arrive.", true);
-    } else {
-      useVideoWrapper.classList.remove("hidden");
-      startUseScanBtn.disabled = true;
-      stopUseScanBtn.disabled = false;
-      useFlashBtn.disabled = false;
-      setStatus(useStatus, "Camera active. Scan empties before tossing.", true);
-    }
-  });
-}
-
-function stopQuagga() {
-  if (!quaggaRunning) return;
-
-  Quagga.offDetected(handleQuaggaDetected);
-  Quagga.stop();
-  quaggaRunning = false;
-  quaggaMode = null;
-  lastScanCode = null;
-
-  receiveVideoWrapper.classList.add("hidden");
-  useVideoWrapper.classList.add("hidden");
-
-  startReceiveScanBtn.disabled = false;
-  stopReceiveScanBtn.disabled = true;
-  receiveFlashBtn.disabled = true;
-  receiveTorchOn = false;
-
-  startUseScanBtn.disabled = false;
-  stopUseScanBtn.disabled = true;
-  useFlashBtn.disabled = true;
-  useTorchOn = false;
-}
-
-/*********************************************************
- * FLASH / TORCH CONTROL (where supported)
- *********************************************************/
-async function toggleTorch(mode) {
-  if (!quaggaRunning) return;
-
-  const track = Quagga.CameraAccess &&
-                Quagga.CameraAccess.getActiveTrack &&
-                Quagga.CameraAccess.getActiveTrack();
-  if (!track || !track.getCapabilities) {
-    if (mode === "receive") setStatus(receiveStatus, "Flash not supported on this device.", false);
-    else setStatus(useStatus, "Flash not supported on this device.", false);
-    return;
-  }
-
-  const caps = track.getCapabilities();
-  if (!caps.torch) {
-    if (mode === "receive") setStatus(receiveStatus, "Flash not supported on this device.", false);
-    else setStatus(useStatus, "Flash not supported on this device.", false);
-    return;
-  }
-
-  const newState = mode === "receive" ? !receiveTorchOn : !useTorchOn;
-
-  try {
-    await track.applyConstraints({ advanced: [{ torch: newState }] });
-    if (mode === "receive") {
-      receiveTorchOn = newState;
-      setStatus(receiveStatus, newState ? "Flash ON" : "Flash OFF", true);
-    } else {
-      useTorchOn = newState;
-      setStatus(useStatus, newState ? "Flash ON" : "Flash OFF", true);
-    }
-  } catch (e) {
-    console.error("Torch error", e);
-    if (mode === "receive") setStatus(receiveStatus, "Unable to toggle flash.", false);
-    else setStatus(useStatus, "Unable to toggle flash.", false);
-  }
-}
-
-/*********************************************************
- * START/STOP SCANNERS
- *********************************************************/
-startReceiveScanBtn.addEventListener("click", () => startQuagga("receive"));
-stopReceiveScanBtn.addEventListener("click", stopQuagga);
-receiveFlashBtn.addEventListener("click", () => toggleTorch("receive"));
-
-startUseScanBtn.addEventListener("click", () => startQuagga("use"));
-stopUseScanBtn.addEventListener("click", stopQuagga);
-useFlashBtn.addEventListener("click", () => toggleTorch("use"));
-
-/*********************************************************
- * INVENTORY TABLE RENDERING
- *********************************************************/
-function inventoryArray() {
-  return Object.values(inventory || {});
-}
-
-function renderInventoryTable() {
-  const rows = inventoryArray().sort((a, b) =>
-    (a.name || "").localeCompare(b.name || "")
-  );
-
-  const search = invSearch.value.trim().toLowerCase();
-  const filtered = rows.filter(item =>
-    !search ||
-    (item.name || "").toLowerCase().includes(search) ||
-    (item.upc || "").includes(search)
-  );
-
-  inventoryBody.innerHTML = "";
-
-  if (!filtered.length) {
-    inventoryBody.innerHTML =
-      "<tr><td colspan='6' style='color:#888;'>No items found.</td></tr>";
-    inventoryStatus.textContent = "";
-    return;
-  }
-
-  let total = 0;
-
-  filtered.forEach(item => {
-    total += Number(item.qty || 0);
-
-    const tr = document.createElement("tr");
-
-    tr.innerHTML = `
-      <td>${item.name || "(unnamed)"}</td>
-      <td>${item.upc}</td>
-      <td>${item.category}</td>
-      <td>${item.qty}</td>
-      <td>${item.par || ""}</td>
-      <td><button class="btn secondary" style="padding:4px 10px;font-size:12px;" data-edit="${item.upc}">Edit</button></td>
-    `;
-
-    inventoryBody.appendChild(tr);
-  });
-
-  inventoryStatus.textContent =
-    `${filtered.length} items • ${total} units`;
-}
-
-invSearch.addEventListener("input", renderInventoryTable);
-
-/*********************************************************
- * MODAL: NEW / EDIT ITEM
- *********************************************************/
-function openNewItem(upc, initialQty = 1) {
-  modalTitle.textContent = "New Item";
-  modalSubtitle.textContent = "We’ve never seen this UPC before. Fill it out once and we’ll remember it.";
-  modalUpc.value = upc;
-  modalName.value = "";
-  modalCategory.value = "Syrup";
-  modalSize.value = "";
-  modalUnit.value = "bottle";
-  modalPar.value = "";
-  modalQty.value = String(initialQty || 1);
-  modalNotes.value = "";
-  modalDeleteBtn.classList.add("hidden");
-  modalStatus.textContent = "";
-  itemModalBackdrop.classList.remove("hidden");
-  modalMode = "create";
-  modalUpcCurrent = upc;
-}
-
-function openEditItem(upc) {
-  const item = inventory[upc];
-  if (!item) return;
-
-  modalTitle.textContent = "Edit Item";
-  modalSubtitle.textContent = "Adjust name, category, par level or quantity as needed.";
-  modalUpc.value = upc;
-  modalName.value = item.name || "";
-  modalCategory.value = item.category || "Other";
-  modalSize.value = item.size || "";
-  modalUnit.value = item.unit || "";
-  modalPar.value = item.par != null ? String(item.par) : "";
-  modalQty.value = item.qty != null ? String(item.qty) : "";
-  modalNotes.value = item.notes || "";
-  modalDeleteBtn.classList.remove("hidden");
-  modalStatus.textContent = "";
-  itemModalBackdrop.classList.remove("hidden");
-  modalMode = "edit";
-  modalUpcCurrent = upc;
-}
-
-function closeItemModal() {
-  itemModalBackdrop.classList.add("hidden");
-}
-
-modalCancelBtn.addEventListener("click", closeItemModal);
-
-modalSaveBtn.addEventListener("click", () => {
-  const upc = (modalUpc.value || "").trim();
-  const name = modalName.value.trim();
-  const category = modalCategory.value;
-  const size = modalSize.value.trim();
-  const unit = modalUnit.value.trim() || "bottle";
-  const par = modalPar.value ? Number(modalPar.value) : 0;
-  const qty = modalQty.value ? Math.max(0, Number(modalQty.value)) : 0;
-  const notes = modalNotes.value.trim();
-
-  if (!upc) {
-    setStatus(modalStatus, "UPC missing");
-    return;
-  }
-  if (!name) {
-    setStatus(modalStatus, "Give the item a name");
-    return;
-  }
-
-  const now = new Date().toISOString();
-
-  if (modalMode === "create") {
-    inventory[upc] = {
-      upc,
-      name,
-      category,
-      size,
-      unit,
-      par,
-      qty,
-      notes,
-      last_added: now,
-      last_used: ""
-    };
-  } else {
-    const item = inventory[upc] || { upc };
-    item.name = name;
-    item.category = category;
-    item.size = size;
-    item.unit = unit;
-    item.par = par;
-    item.qty = qty;
-    item.notes = notes;
-    inventory[upc] = item;
-  }
-
-  saveInventoryLocal();
-  renderInventoryTable();
-  renderReceiveList();
-  setStatus(modalStatus, "Saved", true);
-
-  setTimeout(() => {
-    closeItemModal();
-  }, 200);
-});
-
-modalDeleteBtn.addEventListener("click", () => {
-  if (!modalUpcCurrent) return;
-  if (!confirm("Remove this item from inventory on this device?")) return;
-
-  delete inventory[modalUpcCurrent];
-  saveInventoryLocal();
-  renderInventoryTable();
-  closeItemModal();
-});
-
-/*********************************************************
- * INVENTORY EDIT BUTTON HANDLER
- *********************************************************/
-inventoryBody.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-edit]");
-  if (!btn) return;
-  const upc = btn.getAttribute("data-edit");
-  if (!upc) return;
-  openEditItem(upc);
-});
-
-/*********************************************************
- * EXPORT / PRINT
- *********************************************************/
-btnExport.addEventListener("click", () => {
-  const rows = inventoryArray().sort((a, b) =>
-    (a.category || "").localeCompare(b.category || "") ||
-    (a.name || "").localeCompare(b.name || "")
-  );
-
-  const now = new Date();
-  const win = window.open("", "_blank");
-  if (!win) {
-    alert("Popup blocked. Allow popups for this site to export/print.");
-    return;
-  }
-
-  win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Brewtopia Inventory Export</title>");
-  win.document.write("<style>");
-  win.document.write(`
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; color: #111827; }
-    h1 { margin: 0 0 4px; }
-    .muted { color: #6b7280; font-size: 13px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
-    th, td { border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; }
-    th { background: #f3f4f6; font-size: 12px; }
-    tr:nth-child(even) td { background: #f9fafb; }
-  `);
-  win.document.write("</style></head><body>");
-
-  win.document.write("<h1>Brewtopia Inventory</h1>");
-  win.document.write(`<div class="muted">Exported ${now.toLocaleString()}</div>`);
-  win.document.write("<table><thead><tr>");
-  win.document.write("<th>Category</th><th>Item</th><th>UPC</th><th>Size</th><th>Unit</th><th>Qty</th><th>Par</th><th>Notes</th>");
-  win.document.write("</tr></thead><tbody>");
-
-  if (!rows.length) {
-    win.document.write("<tr><td colspan='8'>No items in inventory.</td></tr>");
-  } else {
-    rows.forEach(item => {
-      win.document.write("<tr>");
-      win.document.write(`<td>${item.category || ""}</td>`);
-      win.document.write(`<td>${item.name || ""}</td>`);
-      win.document.write(`<td>${item.upc || ""}</td>`);
-      win.document.write(`<td>${item.size || ""}</td>`);
-      win.document.write(`<td>${item.unit || ""}</td>`);
-      win.document.write(`<td>${item.qty != null ? item.qty : ""}</td>`);
-      win.document.write(`<td>${item.par != null ? item.par : ""}</td>`);
-      win.document.write(`<td>${item.notes || ""}</td>`);
-      win.document.write("</tr>");
+    filtered.forEach(item => {
+      const q = Number(item.qty || 0);
+      totalItems += q;
     });
+
+    filtered.forEach(item => {
+      const tr = document.createElement("tr");
+      const q = Number(item.qty || 0);
+      const par = Number(item.par || 0);
+
+      if (q === 0) tr.classList.add("stock-zero");
+      else if (par > 0 && q < par) tr.classList.add("stock-low");
+
+      const tdName = document.createElement("td");
+      tdName.innerHTML = `<strong>${item.name || "(unnamed item)"}</strong><br>
+        <span class="small-text">${item.size || ""} ${item.unit || ""}</span>`;
+
+      const tdUpc = document.createElement("td");
+      tdUpc.textContent = item.upc || "";
+
+      const tdCat = document.createElement("td");
+      const chipClass = getCategoryChipClass(item.category);
+      const catLabel = item.category || "Other";
+      tdCat.innerHTML = `<span class="${chipClass}">${catLabel}</span>`;
+
+      const tdQty = document.createElement("td");
+      tdQty.textContent = q;
+
+      const tdPar = document.createElement("td");
+      tdPar.textContent = par || "";
+
+      const tdEdit = document.createElement("td");
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Edit";
+      editBtn.className = "btn secondary";
+      editBtn.style.padding = "4px 10px";
+      editBtn.style.fontSize = "11px";
+      editBtn.addEventListener("click", () => openEditItem(item.upc));
+      tdEdit.appendChild(editBtn);
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdUpc);
+      tr.appendChild(tdCat);
+      tr.appendChild(tdQty);
+      tr.appendChild(tdPar);
+      tr.appendChild(tdEdit);
+      inventoryBody.appendChild(tr);
+    });
+
+    inventoryStatus.textContent = `${totalSkus} items • ${totalItems} units total`;
   }
 
-  win.document.write("</tbody></table></body></html>");
-  win.document.close();
-  win.focus();
-  win.print();
-});
+  invSearch.addEventListener("input", renderInventoryTable);
+  invCategoryFilter.addEventListener("change", renderInventoryTable);
+  invStockFilter.addEventListener("change", renderInventoryTable);
 
-/*********************************************************
- * USB BARCODE SCANNER SUPPORT
- *********************************************************/
-let scanBuffer = "";
-let lastCharTime = 0;
-const SCAN_TIMEOUT = 80; // ms between characters to count as one scan
-
-window.addEventListener("keydown", (e) => {
-  const active = document.activeElement;
-  if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
-    return;
-  }
-
-  const now = Date.now();
-
-  if (now - lastCharTime > SCAN_TIMEOUT) {
-    scanBuffer = "";
-  }
-  lastCharTime = now;
-
-  if (/^[0-9]$/.test(e.key)) {
-    scanBuffer += e.key;
-    return;
-  }
-
-  if (e.key === "Enter") {
-    const upc = scanBuffer.trim();
-    scanBuffer = "";
+  /***************
+   * RECEIVE STOCK
+   ***************/
+  function addReceiveScan(upc) {
+    if (!upc) return;
+    upc = upc.trim();
     if (!upc) return;
 
-    const inReceive = !receiveCard.classList.contains("hidden");
-    const inUse = !useCard.classList.contains("hidden");
-
-    if (inReceive) {
-      addReceiveScan(upc);
-    } else if (inUse) {
-      useOne(upc);
+    const existing = inventory[upc];
+    if (!existing) {
+      openNewItem(upc, 1); // new item, starting with qty 1
+      return;
     }
 
-    e.preventDefault();
+    if (!receiveScans[upc]) {
+      receiveScans[upc] = 0;
+    }
+    receiveScans[upc]++;
+    renderReceiveList();
   }
-});
+
+  function renderReceiveList() {
+    const keys = Object.keys(receiveScans);
+    if (!keys.length) {
+      receiveList.textContent = "No items scanned yet.";
+      receiveApplyBtn.disabled = true;
+      return;
+    }
+
+    const parts = keys.map(upc => {
+      const count = receiveScans[upc];
+      const item = inventory[upc];
+      const name = item ? item.name : "(unnamed item)";
+      return `<div>- <strong>${name}</strong> [${upc}] × ${count}</div>`;
+    });
+
+    receiveList.innerHTML = parts.join("");
+    receiveApplyBtn.disabled = false;
+  }
+
+  receiveManualBtn.addEventListener("click", () => {
+    const upc = receiveManualUpc.value;
+    addReceiveScan(upc);
+    receiveManualUpc.value = "";
+    receiveManualUpc.focus();
+  });
+
+  receiveApplyBtn.addEventListener("click", () => {
+    const now = new Date();
+    Object.keys(receiveScans).forEach(upc => {
+      const count = receiveScans[upc];
+      const item = inventory[upc];
+      if (!item) return;
+      item.qty = Number(item.qty || 0) + count;
+      item.last_added = now.toISOString();
+    });
+    saveInventoryToStorage();
+    receiveScans = {};
+    renderReceiveList();
+    renderInventoryTable();
+    updateSummaryLine();
+    setStatus(receiveStatus, "Inventory updated.", "ok");
+  });
+
+  /***************
+   * USE ITEM
+   ***************/
+  function useOne(upc) {
+    if (!upc) return;
+    upc = upc.trim();
+    const item = inventory[upc];
+    if (!item) {
+      setStatus(useStatus, "UPC not found. Scan it in Receive Stock first.", "error");
+      return;
+    }
+    const before = Number(item.qty || 0);
+    const after = Math.max(0, before - 1);
+    item.qty = after;
+    item.last_used = new Date().toISOString();
+    saveInventoryToStorage();
+    renderInventoryTable();
+    updateSummaryLine();
+
+    let msg = `Used 1 of ${item.name || "(item)"} — now ${after}.`;
+    if (after === 0) msg += " ⚠ Out of stock.";
+    else if (item.par && after < item.par) msg += " ⚠ Below par.";
+    setStatus(useStatus, msg, after === 0 || (item.par && after < item.par) ? "error" : "ok");
+  }
+
+  useManualBtn.addEventListener("click", () => {
+    const upc = useManualUpc.value;
+    useOne(upc);
+    useManualUpc.value = "";
+    useManualUpc.focus();
+  });
+
+  /***************
+   * QUAGGA SCANNER (CAMERA)
+   ***************/
+  function startScanner(mode) {
+    if (currentScanMode) {
+      stopScanner();
+    }
+    currentScanMode = mode;
+
+    const wrapper = mode === "receive" ? receiveVideoWrapper : useVideoWrapper;
+    const statusEl = mode === "receive" ? receiveStatus : useStatus;
+    const startBtn = mode === "receive" ? startReceiveScanBtn : startUseScanBtn;
+    const stopBtn = mode === "receive" ? stopReceiveScanBtn : stopUseScanBtn;
+
+    wrapper.classList.remove("hidden");
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    setStatus(statusEl, "Initializing camera…", null);
+
+    const config = {
+      inputStream: {
+        type: "LiveStream",
+        constraints: {
+          facingMode: "environment", // rear camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        target: wrapper
+      },
+      locator: {
+        patchSize: "medium",
+        halfSample: true
+      },
+      decoder: {
+        // Common retail / UPC style codes
+        readers: [
+          "ean_reader",
+          "ean_8_reader",
+          "upc_reader",
+          "upc_e_reader",
+          "code_128_reader"
+        ]
+      },
+      locate: true,
+      numOfWorkers: 0 // safer for some mobile browsers
+    };
+
+    Quagga.init(config, function(err) {
+      if (err) {
+        console.error(err);
+        setStatus(statusEl, "Camera error: " + err.message || err, "error");
+        stopScanner();
+        return;
+      }
+      quaggaInitialized = true;
+      Quagga.start();
+      setStatus(
+        statusEl,
+        mode === "receive"
+          ? "Camera active. Scan items as they arrive."
+          : "Camera active. Scan empties before tossing.",
+        "ok"
+      );
+    });
+
+    Quagga.onDetected(onQuaggaDetected);
+  }
+
+  function onQuaggaDetected(result) {
+    if (!result || !result.codeResult || !result.codeResult.code) return;
+    const code = String(result.codeResult.code).trim();
+    if (!code) return;
+
+    // Simple debounce: ignore duplicate scan of same code within a short time by barista behavior
+
+    if (currentScanMode === "receive") {
+      addReceiveScan(code);
+    } else if (currentScanMode === "use") {
+      useOne(code);
+    }
+
+    // Optional: vibrate briefly on scan
+    if (navigator.vibrate) {
+      navigator.vibrate(80);
+    }
+  }
+
+  function stopScanner() {
+    if (!currentScanMode) return;
+
+    const mode = currentScanMode;
+    const wrapper = mode === "receive" ? receiveVideoWrapper : useVideoWrapper;
+    const startBtn = mode === "receive" ? startReceiveScanBtn : startUseScanBtn;
+    const stopBtn = mode === "receive" ? stopReceiveScanBtn : stopUseScanBtn;
+    const statusEl = mode === "receive" ? receiveStatus : useStatus;
+
+    currentScanMode = null;
+
+    try {
+      if (quaggaInitialized) {
+        Quagga.offDetected(onQuaggaDetected);
+        Quagga.stop();
+      }
+    } catch (e) {
+      console.warn("Error stopping Quagga", e);
+    }
+
+    wrapper.classList.add("hidden");
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    setStatus(statusEl, "", null);
+  }
+
+  startReceiveScanBtn.addEventListener("click", () => startScanner("receive"));
+  stopReceiveScanBtn.addEventListener("click", () => stopScanner());
+  startUseScanBtn.addEventListener("click", () => startScanner("use"));
+  stopUseScanBtn.addEventListener("click", () => stopScanner());
+
+  /***************
+   * MODAL: NEW / EDIT ITEM
+   ***************/
+  function openNewItem(upc, initialQty) {
+    modalMode = "create";
+    modalUpcCurrent = upc;
+    modalModeLabel.textContent = "New Item";
+    modalTitle.textContent = "Describe this item";
+    modalSubtitle.textContent = "We’ve never seen this barcode before. Fill in the details once and we’ll remember it.";
+    modalUpc.value = upc;
+    modalName.value = "";
+    modalCategory.value = "Syrup";
+    modalSize.value = "";
+    modalUnit.value = "bottle";
+    modalPar.value = "";
+    modalQty.value = typeof initialQty === "number" ? String(initialQty) : "";
+    modalNotes.value = "";
+    setStatus(modalStatus, "", null);
+    modalDeleteBtn.classList.add("hidden");
+    itemModalBackdrop.classList.remove("hidden");
+  }
+
+  function openEditItem(upc) {
+    const item = inventory[upc];
+    if (!item) return;
+    modalMode = "edit";
+    modalUpcCurrent = upc;
+    modalModeLabel.textContent = "Edit Item";
+    modalTitle.textContent = item.name || "Edit item";
+    modalSubtitle.textContent = "Adjust name, category, par level or quantity as needed.";
+    modalUpc.value = upc;
+    modalName.value = item.name || "";
+    modalCategory.value = item.category || "Other";
+    modalSize.value = item.size || "";
+    modalUnit.value = item.unit || "";
+    modalPar.value = item.par != null ? String(item.par) : "";
+    modalQty.value = item.qty != null ? String(item.qty) : "";
+    modalNotes.value = item.notes || "";
+    setStatus(modalStatus, "", null);
+    modalDeleteBtn.classList.remove("hidden");
+    itemModalBackdrop.classList.remove("hidden");
+  }
+
+  function closeItemModal() {
+    itemModalBackdrop.classList.add("hidden");
+  }
+
+  modalCancelBtn.addEventListener("click", closeItemModal);
+  modalCloseBtn.addEventListener("click", closeItemModal);
+
+  modalSaveBtn.addEventListener("click", () => {
+    const upc = (modalUpc.value || "").trim();
+    if (!upc) {
+      setStatus(modalStatus, "UPC missing.", "error");
+      return;
+    }
+    const name = modalName.value.trim();
+    const category = modalCategory.value;
+    const size = modalSize.value.trim();
+    const unit = modalUnit.value.trim() || "bottle";
+    const par = modalPar.value ? Number(modalPar.value) : 0;
+    const qty = modalQty.value ? Math.max(0, Number(modalQty.value)) : 0;
+    const notes = modalNotes.value.trim();
+    const now = new Date().toISOString();
+
+    if (!name) {
+      setStatus(modalStatus, "Give this item a name.", "error");
+      return;
+    }
+
+    if (modalMode === "create") {
+      inventory[upc] = {
+        upc,
+        name,
+        category,
+        size,
+        unit,
+        par,
+        qty,
+        notes,
+        last_added: now
+      };
+      if (!receiveScans[upc] && qty > 0) {
+        receiveScans[upc] = qty;
+      }
+      setStatus(modalStatus, "Item created.", "ok");
+    } else {
+      const item = inventory[upc] || { upc };
+      item.name = name;
+      item.category = category;
+      item.size = size;
+      item.unit = unit;
+      item.par = par;
+      item.qty = qty;
+      item.notes = notes;
+      inventory[upc] = item;
+      setStatus(modalStatus, "Item updated.", "ok");
+    }
+
+    saveInventoryToStorage();
+    renderReceiveList();
+    renderInventoryTable();
+    updateSummaryLine();
+    setTimeout(closeItemModal, 200);
+  });
+
+  modalDeleteBtn.addEventListener("click", () => {
+    if (!modalUpcCurrent) return;
+    if (!confirm("Remove this item from inventory? This only affects this device.")) return;
+    delete inventory[modalUpcCurrent];
+    saveInventoryToStorage();
+    renderInventoryTable();
+    updateSummaryLine();
+    closeItemModal();
+  });
+
+  /***************
+   * EXPORT / PRINT
+   ***************/
+  btnExport.addEventListener("click", () => {
+    const rows = inventoryArray().sort((a, b) => {
+      const ca = (a.category || "Other").localeCompare(b.category || "Other");
+      if (ca !== 0) return ca;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+    const now = new Date();
+    const dateStr = now.toLocaleString();
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      alert("Popup blocked. Allow popups for this site to export/print.");
+      return;
+    }
+
+    win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Brewtopia Inventory Export</title>");
+    win.document.write("<style>");
+    win.document.write(`
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; color: #111827; }
+      h1 { margin: 0 0 4px; }
+      .muted { color: #6b7280; font-size: 13px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+      th, td { border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; }
+      th { background: #f3f4f6; font-size: 12px; }
+      tr:nth-child(even) td { background: #f9fafb; }
+    `);
+    win.document.write("</style></head><body>");
+    win.document.write("<h1>Brewtopia Inventory</h1>");
+    win.document.write(`<div class="muted">Exported ${dateStr}</div>`);
+    win.document.write("<table><thead><tr>");
+    win.document.write("<th>Category</th><th>Item</th><th>UPC</th><th>Size</th><th>Unit</th><th>Qty</th><th>Par</th><th>Notes</th>");
+    win.document.write("</tr></thead><tbody>");
+
+    if (!rows.length) {
+      win.document.write("<tr><td colspan='8'>No items in inventory.</td></tr>");
+    } else {
+      rows.forEach(item => {
+        win.document.write("<tr>");
+        win.document.write(`<td>${item.category || ""}</td>`);
+        win.document.write(`<td>${item.name || ""}</td>`);
+        win.document.write(`<td>${item.upc || ""}</td>`);
+        win.document.write(`<td>${item.size || ""}</td>`);
+        win.document.write(`<td>${item.unit || ""}</td>`);
+        win.document.write(`<td>${item.qty != null ? item.qty : ""}</td>`);
+        win.document.write(`<td>${item.par != null ? item.par : ""}</td>`);
+        win.document.write(`<td>${item.notes || ""}</td>`);
+        win.document.write("</tr>");
+      });
+    }
+
+    win.document.write("</tbody></table>");
+    win.document.write("</body></html>");
+    win.document.close();
+
+    win.focus();
+    win.print();
+  });
+
 </script>
 </body>
 </html>
