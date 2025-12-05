@@ -5,7 +5,7 @@
   <title>Brewtopia Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ZXing UMD build (supports window.ZXing) -->
+  <!-- ZXing UMD build (adds window.ZXing) -->
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 
   <style>
@@ -126,7 +126,6 @@
     }
 
     .hidden { display: none !important; }
-
   </style>
 </head>
 
@@ -148,7 +147,7 @@
   <div id="mainArea" class="hidden">
 
     <div class="card">
-      <div style="display:flex;justify-content:space-between;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
         <h2>Brewtopia Inventory</h2>
         <button id="lockBtn" class="btn secondary" style="padding:6px 14px;">Lock</button>
       </div>
@@ -205,6 +204,7 @@
 
       <div id="useStatus" style="margin-top:8px;"></div>
     </div>
+
     <!-- INVENTORY -->
     <div id="inventoryCard" class="card hidden">
       <h3>Inventory</h3>
@@ -306,6 +306,26 @@ let modalMode = "create";  // "create" or "edit"
 let modalUpcCurrent = null;
 
 /*********************************************************
+ * ZXING HINTS: enable UPC/EAN/Code128/etc
+ *********************************************************/
+let ZXING_HINTS = null;
+if (window.ZXing) {
+  ZXING_HINTS = new Map();
+  ZXING_HINTS.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.UPC_A,
+    ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.EAN_13,
+    ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.CODE_128,
+    ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.CODE_93,
+    ZXing.BarcodeFormat.ITF,
+    ZXing.BarcodeFormat.QR_CODE,
+    ZXing.BarcodeFormat.DATA_MATRIX
+  ]);
+}
+
+/*********************************************************
  * ELEMENTS
  *********************************************************/
 const loginCard = document.getElementById("loginCard");
@@ -386,6 +406,7 @@ function beep() {
 function vibrate() {
   if (navigator.vibrate) navigator.vibrate(70);
 }
+
 /*********************************************************
  * LOGIN
  *********************************************************/
@@ -552,7 +573,7 @@ useManualBtn.addEventListener("click", () => {
 });
 
 /*********************************************************
- * CAMERA SCANNERS
+ * CAMERA SCANNERS (with UPC/EAN formats)
  *********************************************************/
 
 // Helper: get rear camera deviceId
@@ -569,9 +590,13 @@ async function getRearCameraId() {
 
 // RECEIVE scanner
 async function startReceiveScanner() {
+  if (!window.ZXing) {
+    setStatus(receiveStatus, "ZXing not loaded", false);
+    return;
+  }
   if (receiveReader) return;
   try {
-    receiveReader = new ZXing.BrowserMultiFormatReader();
+    receiveReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS || undefined);
     const deviceId = await getRearCameraId();
 
     receiveVideoWrapper.classList.remove("hidden");
@@ -587,9 +612,10 @@ async function startReceiveScanner() {
         }
       }
     );
+    setStatus(receiveStatus, "Camera active. Scan items as they arrive.", true);
   } catch (err) {
     console.error(err);
-    setStatus(receiveStatus, "Camera error: " + err.message);
+    setStatus(receiveStatus, "Camera error: " + err.message, false);
     stopReceiveScanner();
   }
 }
@@ -606,9 +632,13 @@ function stopReceiveScanner() {
 
 // USE scanner
 async function startUseScanner() {
+  if (!window.ZXing) {
+    setStatus(useStatus, "ZXing not loaded", false);
+    return;
+  }
   if (useReader) return;
   try {
-    useReader = new ZXing.BrowserMultiFormatReader();
+    useReader = new ZXing.BrowserMultiFormatReader(ZXING_HINTS || undefined);
     const deviceId = await getRearCameraId();
 
     useVideoWrapper.classList.remove("hidden");
@@ -624,9 +654,10 @@ async function startUseScanner() {
         }
       }
     );
+    setStatus(useStatus, "Camera active. Scan empties before tossing.", true);
   } catch (err) {
     console.error(err);
-    setStatus(useStatus, "Camera error: " + err.message);
+    setStatus(useStatus, "Camera error: " + err.message, false);
     stopUseScanner();
   }
 }
@@ -698,6 +729,7 @@ function renderInventoryTable() {
 }
 
 invSearch.addEventListener("input", renderInventoryTable);
+
 /*********************************************************
  * MODAL: NEW / EDIT ITEM
  *********************************************************/
