@@ -447,7 +447,8 @@
 
       <div class="flex-row">
         <button class="btn" id="startReceiveScanBtn">🎥 Camera Scan</button>
-        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop Camera</button>
+        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="toggleReceiveTorchBtn" disabled>Flash</button>
       </div>
       <div id="receiveVideoWrapper" class="video-wrapper hidden">
         <!-- Quagga injects video/canvas here -->
@@ -479,7 +480,8 @@
 
       <div class="flex-row">
         <button class="btn" id="startUseScanBtn">🎥 Camera Scan</button>
-        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop Camera</button>
+        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="toggleUseTorchBtn" disabled>Flash</button>
       </div>
       <div id="useVideoWrapper" class="video-wrapper hidden">
         <!-- Quagga injects video/canvas here -->
@@ -617,9 +619,15 @@
   let currentScanMode = null; // "receive" | "use" | null
   let quaggaInitialized = false;
 
+  // Torch
+  let torchOn = false;
+
   // Simple debounce state
   window._lastScan = null;
   window._lastScanTime = 0;
+
+  // Audio for beep
+  let audioCtx = null;
 
   /***************
    * ELEMENTS
@@ -645,6 +653,7 @@
 
   const startReceiveScanBtn = document.getElementById("startReceiveScanBtn");
   const stopReceiveScanBtn = document.getElementById("stopReceiveScanBtn");
+  const toggleReceiveTorchBtn = document.getElementById("toggleReceiveTorchBtn");
   const receiveVideoWrapper = document.getElementById("receiveVideoWrapper");
   const receiveManualUpc = document.getElementById("receiveManualUpc");
   const receiveManualBtn = document.getElementById("receiveManualBtn");
@@ -654,6 +663,7 @@
 
   const startUseScanBtn = document.getElementById("startUseScanBtn");
   const stopUseScanBtn = document.getElementById("stopUseScanBtn");
+  const toggleUseTorchBtn = document.getElementById("toggleUseTorchBtn");
   const useVideoWrapper = document.getElementById("useVideoWrapper");
   const useManualUpc = document.getElementById("useManualUpc");
   const useManualBtn = document.getElementById("useManualBtn");
@@ -687,6 +697,7 @@
    * UTIL
    ***************/
   function setStatus(el, msg, type) {
+    if (!el) return;
     el.textContent = msg || "";
     el.classList.remove("ok", "error");
     if (type) el.classList.add(type);
@@ -755,6 +766,37 @@
     summaryLine.textContent =
       `Tracking ${rows.length} items • ${total} units. ` +
       `${low ? low + " low" : "No low stock"} • ${zero ? zero + " out" : "None out of stock"}.`;
+  }
+
+  function playBeep() {
+    try {
+      if (!window.AudioContext && !window.webkitAudioContext) return;
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      console.warn("Beep error:", e);
+    }
+  }
+
+  function isValidUPC(code) {
+    if (!/^[0-9]{12}$/.test(code)) return false;
+    let sum = 0;
+    for (let i = 0; i < 11; i++) {
+      const n = parseInt(code[i], 10);
+      sum += (i % 2 === 0) ? n * 3 : n;
+    }
+    const check = (10 - (sum % 10)) % 10;
+    return check === parseInt(code[11], 10);
   }
 
   /***************
@@ -1029,22 +1071,26 @@
       stopScanner();
     }
     currentScanMode = mode;
+    torchOn = false;
 
     const wrapper = mode === "receive" ? receiveVideoWrapper : useVideoWrapper;
     const statusEl = mode === "receive" ? receiveStatus : useStatus;
     const startBtn = mode === "receive" ? startReceiveScanBtn : startUseScanBtn;
     const stopBtn = mode === "receive" ? stopReceiveScanBtn : stopUseScanBtn;
+    const torchBtn = mode === "receive" ? toggleReceiveTorchBtn : toggleUseTorchBtn;
 
     wrapper.classList.remove("hidden");
     startBtn.disabled = true;
     stopBtn.disabled = false;
+    torchBtn.disabled = true; // enabled after init if supported
+    torchBtn.textContent = "Flash";
     setStatus(statusEl, "Initializing camera…", null);
 
     const config = {
       inputStream: {
         type: "LiveStream",
         constraints: {
-          facingMode: "environment", // rear camera
+          facingMode: "environment",
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
@@ -1059,12 +1105,18 @@
           "ean_reader",
           "ean_8_reader",
           "upc_reader",
-          "upc_e_reader",
-          "code_128_reader"
-        ]
+          "upc_e_reader"
+        ],
+        multiple: false,
+        debug: {
+          drawBoundingBox: false,
+          showFrequency: false,
+          drawScanline: false,
+          showPattern: false
+        }
       },
       locate: true,
-      numOfWorkers: 0 // mobile-safe
+      numOfWorkers: 0
     };
 
     Quagga.init(config, function(err) {
@@ -1083,6 +1135,17 @@
           : "Camera active. Scan empties before tossing.",
         "ok"
       );
+
+      // Enable torch button if capabilities allow
+      const track = Quagga.CameraAccess &&
+                    Quagga.CameraAccess.getActiveTrack &&
+                    Quagga.CameraAccess.getActiveTrack();
+      if (track && track.getCapabilities) {
+        const caps = track.getCapabilities();
+        if (caps && caps.torch) {
+          torchBtn.disabled = false;
+        }
+      }
     });
 
     Quagga.onDetected(onQuaggaDetected);
@@ -1091,12 +1154,34 @@
   function onQuaggaDetected(result) {
     if (!result || !result.codeResult || !result.codeResult.code) return;
 
+    // Confidence / error filter
+    if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length) {
+      let errorSum = 0;
+      let count = 0;
+      result.codeResult.decodedCodes.forEach(c => {
+        if (typeof c.error === "number") {
+          errorSum += c.error;
+          count++;
+        }
+      });
+      if (count > 0 && errorSum < -5) {
+        // Too low-confidence, ignore this read
+        return;
+      }
+    }
+
     let code = String(result.codeResult.code).trim();
     if (!code) return;
 
     // UPC-A fix: EAN-13 wrapper adds leading 0 → strip if so
     if (code.length === 13 && code.startsWith("0")) {
       code = code.substring(1);
+    }
+
+    // Reject invalid UPCs via checksum
+    if (code.length === 12 && !isValidUPC(code)) {
+      console.warn("Rejected invalid UPC:", code);
+      return;
     }
 
     // Debounce duplicate scans of same code within 750ms
@@ -1107,17 +1192,53 @@
     window._lastScan = code;
     window._lastScanTime = now;
 
+    // Feedback
+    if (navigator.vibrate) {
+      navigator.vibrate(80);
+    }
+    playBeep();
+
     // Route based on current mode
     if (currentScanMode === "receive") {
       addReceiveScan(code);
     } else if (currentScanMode === "use") {
       useOne(code);
     }
+  }
 
-    // Haptic feedback
-    if (navigator.vibrate) {
-      navigator.vibrate(80);
+  function toggleTorch(mode) {
+    const statusEl = mode === "receive" ? receiveStatus : useStatus;
+    const btn = mode === "receive" ? toggleReceiveTorchBtn : toggleUseTorchBtn;
+
+    const track = Quagga.CameraAccess &&
+                  Quagga.CameraAccess.getActiveTrack &&
+                  Quagga.CameraAccess.getActiveTrack();
+    if (!track) {
+      setStatus(statusEl, "Flash not available on this device.", "error");
+      return;
     }
+
+    if (!track.getCapabilities || !track.applyConstraints) {
+      setStatus(statusEl, "Flash not supported by this browser.", "error");
+      return;
+    }
+
+    const caps = track.getCapabilities();
+    if (!caps || !caps.torch) {
+      setStatus(statusEl, "Flash/torch not supported on this camera.", "error");
+      return;
+    }
+
+    torchOn = !torchOn;
+    track.applyConstraints({ advanced: [{ torch: torchOn }] })
+      .then(() => {
+        btn.textContent = torchOn ? "Flash Off" : "Flash On";
+        setStatus(statusEl, torchOn ? "Flash on." : "Flash off.", "ok");
+      })
+      .catch(err => {
+        console.warn("Torch error:", err);
+        setStatus(statusEl, "Flash error: " + (err.message || err), "error");
+      });
   }
 
   function stopScanner() {
@@ -1127,9 +1248,11 @@
     const wrapper = mode === "receive" ? receiveVideoWrapper : useVideoWrapper;
     const startBtn = mode === "receive" ? startReceiveScanBtn : startUseScanBtn;
     const stopBtn = mode === "receive" ? stopReceiveScanBtn : stopUseScanBtn;
+    const torchBtn = mode === "receive" ? toggleReceiveTorchBtn : toggleUseTorchBtn;
     const statusEl = mode === "receive" ? receiveStatus : useStatus;
 
     currentScanMode = null;
+    torchOn = false;
 
     try {
       if (quaggaInitialized) {
@@ -1143,6 +1266,8 @@
     wrapper.classList.add("hidden");
     startBtn.disabled = false;
     stopBtn.disabled = true;
+    torchBtn.disabled = true;
+    torchBtn.textContent = "Flash";
     setStatus(statusEl, "", null);
   }
 
@@ -1150,6 +1275,8 @@
   stopReceiveScanBtn.addEventListener("click", () => stopScanner());
   startUseScanBtn.addEventListener("click", () => startScanner("use"));
   stopUseScanBtn.addEventListener("click", () => stopScanner());
+  toggleReceiveTorchBtn.addEventListener("click", () => toggleTorch("receive"));
+  toggleUseTorchBtn.addEventListener("click", () => toggleTorch("use"));
 
   /***************
    * MODAL: NEW / EDIT ITEM
