@@ -216,41 +216,28 @@
     }
 
     .video-wrapper {
-  position: relative;
-  background: #010409;
-  border-radius: 14px;
-  overflow: hidden;
-  margin-top: 8px;
-  border: 1px solid #30363d;
-
-  /* NEW responsive size */
-  width: 100%;
-  height: 240px;       /* Recommended UPC scan window height */
-  max-height: 240px;
-}
-
-/* Make video fill the resize box cleanly */
-.video-wrapper video,
-.video-wrapper canvas {
-  object-fit: cover;
-  width: 100%;
-  height: 100%;
-}
-
+      position: relative;
+      background: #010409;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 8px;
+      border: 1px solid #30363d;
+      width: 100%;
+      height: 240px;     /* compact scan window */
+      max-height: 240px;
     }
 
-    /* Quagga will inject its own <video> + <canvas> here */
-    #receiveVideoWrapper video,
-    #receiveVideoWrapper canvas,
-    #useVideoWrapper video,
-    #useVideoWrapper canvas {
+    .video-wrapper video,
+    .video-wrapper canvas {
       width: 100%;
+      height: 100%;
+      object-fit: cover;
       display: block;
     }
 
     .scan-overlay {
       position: absolute;
-      inset: 14%;
+      inset: 12%;
       border: 2px solid rgba(47, 129, 247, 0.85);
       border-radius: 14px;
       box-shadow: 0 0 20px rgba(37, 99, 235, 0.7);
@@ -629,6 +616,10 @@
   // Quagga state
   let currentScanMode = null; // "receive" | "use" | null
   let quaggaInitialized = false;
+
+  // Simple debounce state
+  window._lastScan = null;
+  window._lastScanTime = 0;
 
   /***************
    * ELEMENTS
@@ -1064,7 +1055,6 @@
         halfSample: true
       },
       decoder: {
-        // Common retail / UPC style codes
         readers: [
           "ean_reader",
           "ean_8_reader",
@@ -1074,13 +1064,13 @@
         ]
       },
       locate: true,
-      numOfWorkers: 0 // safer for some mobile browsers
+      numOfWorkers: 0 // mobile-safe
     };
 
     Quagga.init(config, function(err) {
       if (err) {
         console.error(err);
-        setStatus(statusEl, "Camera error: " + err.message || err, "error");
+        setStatus(statusEl, "Camera error: " + (err.message || err), "error");
         stopScanner();
         return;
       }
@@ -1100,18 +1090,31 @@
 
   function onQuaggaDetected(result) {
     if (!result || !result.codeResult || !result.codeResult.code) return;
-    const code = String(result.codeResult.code).trim();
+
+    let code = String(result.codeResult.code).trim();
     if (!code) return;
 
-    // Simple debounce: ignore duplicate scan of same code within a short time by barista behavior
+    // UPC-A fix: EAN-13 wrapper adds leading 0 → strip if so
+    if (code.length === 13 && code.startsWith("0")) {
+      code = code.substring(1);
+    }
 
+    // Debounce duplicate scans of same code within 750ms
+    const now = Date.now();
+    if (window._lastScan === code && now - window._lastScanTime < 750) {
+      return;
+    }
+    window._lastScan = code;
+    window._lastScanTime = now;
+
+    // Route based on current mode
     if (currentScanMode === "receive") {
       addReceiveScan(code);
     } else if (currentScanMode === "use") {
       useOne(code);
     }
 
-    // Optional: vibrate briefly on scan
+    // Haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(80);
     }
