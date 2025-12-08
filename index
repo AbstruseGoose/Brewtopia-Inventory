@@ -1,0 +1,366 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Brewtopia Inventory</title><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.js"></script>
+<style>
+body{margin:0;font-family:system-ui;background:#0d1117;color:#e6edf3;padding:16px;display:flex;justify-content:center}
+.app{width:100%;max-width:900px}
+.card{background:#161b22c0;padding:18px;border-radius:16px;margin-bottom:16px;border:1px solid #30363d;backdrop-filter:blur(14px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:999px;border:1px solid transparent;background:#2ea043;color:#fff;font-size:14px;margin:4px 0;cursor:pointer}
+.btn.secondary{background:#21262d;border-color:#30363d}
+.btn.danger{background:#b91c1c}
+.hidden{display:none!important}
+input,select,textarea{width:100%;padding:8px;margin-top:6px;border-radius:8px;border:1px solid #30363d;background:#010409;color:#e6edf3}
+video{width:100%;border-radius:12px;margin-top:10px;background:#000}
+.modal-backdrop{position:fixed;inset:0;background:#0008;backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;z-index:50}
+.modal{background:#0d1117;padding:18px;border-radius:14px;border:1px solid #30363d;width:100%;max-width:420px}
+</style></head><body><div class="app">
+
+<!-- LOGIN -->
+<div id="loginCard" class="card">
+<h2>Brewtopia Inventory</h2>
+<label>PIN</label><input id="pinInput" type="password" maxlength="6" inputmode="numeric">
+<button class="btn" id="loginBtn">Unlock</button>
+<div id="loginStatus" style="margin-top:6px;color:#f66"></div></div>
+
+<!-- MAIN -->
+<div id="mainArea" class="hidden">
+<div class="card"><h2>Brewtopia Inventory</h2>
+<button class="btn secondary" id="lockBtn" style="float:right;margin-top:-34px;">Lock</button>
+<div style="clear:both"></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+<button class="btn" id="btnReceive">📦 Receive</button>
+<button class="btn secondary" id="btnUse">🥤 Use</button>
+<button class="btn secondary" id="btnInventory">📋 Inventory</button>
+<button class="btn secondary" id="btnExport">📤 Export</button>
+<button class="btn secondary" id="btnImport">📥 Import</button>
+</div>
+<div id="globalStatus" style="margin-top:10px;font-size:13px;color:#8b949e"></div>
+</div>
+
+<!-- RECEIVE -->
+<div id="receiveCard" class="card hidden">
+<h3>Receive Stock</h3>
+<button class="btn" id="startReceiveScan">Start Scan</button>
+<button class="btn secondary hidden" id="stopReceiveScan">Stop</button>
+<video id="recvVideo" class="hidden"></video>
+<input id="recvManual" placeholder="Scan or type UPC">
+<button class="btn secondary" id="recvAddManual">Add</button>
+<div id="recvStatus" style="margin-top:8px;font-size:13px;color:#8b949e"></div>
+</div>
+
+<!-- USE -->
+<div id="useCard" class="card hidden">
+<h3>Use Item</h3>
+<button class="btn" id="startUseScan">Start Scan</button>
+<button class="btn secondary hidden" id="stopUseScan">Stop</button>
+<video id="useVideo" class="hidden"></video>
+<input id="useManual" placeholder="Scan or type UPC">
+<button class="btn secondary" id="useAddManual">Use</button>
+<div id="useStatus" style="margin-top:8px;font-size:13px;color:#8b949e"></div>
+</div>
+
+<!-- INVENTORY -->
+<div id="inventoryCard" class="card hidden">
+<h3>Inventory</h3>
+<input id="invSearch" placeholder="Search">
+<table style="width:100%;margin-top:10px;font-size:13px;border-collapse:collapse">
+<thead><tr style="border-bottom:1px solid #30363d">
+<th>Name</th><th>UPC</th><th>Brand</th><th>Cat</th><th>Office</th><th>Trailer</th><th>Caboose</th><th></th>
+</tr></thead>
+<tbody id="invBody"></tbody></table>
+</div>
+
+<!-- MODALS -->
+<div id="modalQty" class="modal-backdrop hidden">
+<div class="modal">
+<h3>Quantity & Location</h3>
+<label>Location</label>
+<select id="qtyLocation">
+<option value="office">Office</option>
+<option value="trailer">Coffee Trailer</option>
+<option value="caboose">Camper Caboose</option>
+</select>
+<label>Quantity</label>
+<input id="qtyNumber" type="number" value="1" min="1">
+<button class="btn" id="qtyOk">OK</button>
+<button class="btn secondary" id="qtyCancel">Cancel</button>
+</div></div>
+
+<div id="modalItem" class="modal-backdrop hidden">
+<div class="modal">
+<h3 id="itemModalTitle">Item Details</h3>
+<label>UPC</label><input id="mUPC" readonly>
+<label>Name</label><input id="mName">
+<label>Category</label><select id="mCategory"><option>Syrup</option><option>Milk</option><option>Topping</option><option>Cup</option><option>Other</option></select>
+<button class="btn secondary" id="addCatBtn">Add Category</button>
+<label>Brand</label><select id="mBrand"><option>Torani</option><option>Monin</option><option>DaVinci</option><option>Hollander</option><option>Other</option></select>
+<button class="btn secondary" id="addBrandBtn">Add Brand</button>
+<label><input type="checkbox" id="mSugarFree"> Sugar Free</label>
+<label>Size</label><input id="mSize">
+<label>Unit</label><input id="mUnit">
+<label>Office Qty</label><input id="mQOffice" type="number" min="0">
+<label>Trailer Qty</label><input id="mQTrailer" type="number" min="0">
+<label>Caboose Qty</label><input id="mQCaboose" type="number" min="0">
+<label>Notes</label><textarea id="mNotes"></textarea>
+<button class="btn" id="mSave">Save</button>
+<button class="btn danger" id="mDelete">Delete</button>
+<button class="btn secondary" id="mCancel">Cancel</button>
+</div></div>
+
+</div><!-- main -->
+</div><!-- app -->
+
+<script>
+/* STATE */
+const PIN="6251";
+let inventory={};
+let currentUPC="";
+let currentMode="receive";
+
+/* LOAD */
+function loadInv(){let x=localStorage.getItem("brewInv");inventory=x?JSON.parse(x):{}}
+function saveInv(){localStorage.setItem("brewInv",JSON.stringify(inventory))}
+
+/* LOGIN */
+document.getElementById("loginBtn").onclick=()=>{
+ if(document.getElementById("pinInput").value===PIN){
+  document.getElementById("loginCard").classList.add("hidden");
+  document.getElementById("mainArea").classList.remove("hidden");
+  loadInv();renderTable();
+ } else document.getElementById("loginStatus").innerText="Wrong PIN";
+};
+document.getElementById("lockBtn").onclick=()=>{
+ document.getElementById("mainArea").classList.add("hidden");
+ document.getElementById("loginCard").classList.remove("hidden");
+};
+
+/* NAV */
+const showSec=(id)=>{
+ document.getElementById("receiveCard").classList.add("hidden");
+ document.getElementById("useCard").classList.add("hidden");
+ document.getElementById("inventoryCard").classList.add("hidden");
+ document.getElementById(id).classList.remove("hidden");
+ if(id==="receiveCard") document.getElementById("recvManual").focus();
+ if(id==="useCard") document.getElementById("useManual").focus();
+};
+document.getElementById("btnReceive").onclick=()=>{currentMode="receive";showSec("receiveCard")}
+document.getElementById("btnUse").onclick=()=>{currentMode="use";showSec("useCard")}
+document.getElementById("btnInventory").onclick=()=>{renderTable();showSec("inventoryCard")}
+
+/* -----------------------------------
+   UPC CLEANUP
+----------------------------------- */
+function cleanUPC(u){
+ if(!u)return"";
+ u=u.replace(/\D/g,"");
+ if(u.length>12&&u.startsWith("0"))u=u.substring(1);
+ return u;
+}
+
+/* -----------------------------------
+   QUAGGA CAMERA SCANNING
+----------------------------------- */
+function startCam(mode){
+ currentMode=mode;
+ const videoId=mode==="receive"?"recvVideo":"useVideo";
+ const vid=document.getElementById(videoId);
+ vid.classList.remove("hidden");
+ const stopBtn=mode==="receive"?document.getElementById("stopReceiveScan"):document.getElementById("stopUseScan");
+ stopBtn.classList.remove("hidden");
+ const startBtn=mode==="receive"?document.getElementById("startReceiveScan"):document.getElementById("startUseScan");
+ startBtn.classList.add("hidden");
+
+ Quagga.init({
+  inputStream:{type:"LiveStream",target:vid,constraints:{facingMode:"environment"}},
+  decoder:{readers:["upc_reader","upc_e_reader","ean_reader","ean_8_reader"]}
+ },e=>{
+  if(e)return;
+  Quagga.start();
+ });
+
+ Quagga.onDetected(res=>{
+  let code=res.codeResult.code;
+  code=cleanUPC(code);
+  if(code){
+    currentUPC=code;
+    Quagga.stop();
+    openQtyModal();
+  }
+ });
+}
+function stopCam(mode){
+ const videoId=mode==="receive"?"recvVideo":"useVideo";
+ document.getElementById(videoId).classList.add("hidden");
+ const stopBtn=mode==="receive"?document.getElementById("stopReceiveScan"):document.getElementById("stopUseScan");
+ const startBtn=mode==="receive"?document.getElementById("startReceiveScan"):document.getElementById("startUseScan");
+ stopBtn.classList.add("hidden");
+ startBtn.classList.remove("hidden");
+ try{Quagga.stop()}catch(e){}
+}
+
+/* START/STOP CAMERA */
+document.getElementById("startReceiveScan").onclick=()=>startCam("receive");
+document.getElementById("stopReceiveScan").onclick=()=>stopCam("receive");
+document.getElementById("startUseScan").onclick=()=>startCam("use");
+document.getElementById("stopUseScan").onclick=()=>stopCam("use");
+
+/* -----------------------------------
+   MANUAL UPC
+----------------------------------- */
+document.getElementById("recvAddManual").onclick=()=>{
+ let u=cleanUPC(document.getElementById("recvManual").value);if(!u)return;
+ currentUPC=u;openQtyModal();
+}
+document.getElementById("useAddManual").onclick=()=>{
+ let u=cleanUPC(document.getElementById("useManual").value);if(!u)return;
+ currentUPC=u;openQtyModal();
+}
+
+/* -----------------------------------
+   QUANTITY + LOCATION MODAL
+----------------------------------- */
+function openQtyModal(){
+ document.getElementById("qtyNumber").value=1;
+ document.getElementById("modalQty").classList.remove("hidden");
+ document.getElementById("qtyNumber").focus();
+}
+document.getElementById("qtyCancel").onclick=()=>{document.getElementById("modalQty").classList.add("hidden")}
+document.getElementById("qtyOk").onclick=()=>{
+ let q=parseInt(document.getElementById("qtyNumber").value)||1;
+ let loc=document.getElementById("qtyLocation").value;
+
+ if(!inventory[currentUPC]){
+   openItemModal(currentUPC,q,loc);
+   document.getElementById("modalQty").classList.add("hidden");
+   return;
+ }
+
+ let item=inventory[currentUPC];
+ if(loc==="office") item.qOffice=(item.qOffice||0)+q;
+ if(loc==="trailer")item.qTrailer=(item.qTrailer||0)+q;
+ if(loc==="caboose")item.qCaboose=(item.qCaboose||0)+q;
+
+ saveInv();
+ document.getElementById("modalQty").classList.add("hidden");
+ renderTable();
+ if(currentMode==="receive")document.getElementById("recvManual").focus();
+ if(currentMode==="use")document.getElementById("useManual").focus();
+}
+
+/* -----------------------------------
+   ITEM MODAL (CREATE/EDIT)
+----------------------------------- */
+function openItemModal(upc,q,loc){
+ let m=document.getElementById;
+ document.getElementById("itemModalTitle").innerText="New Item";
+ m("mUPC").value=upc;
+ m("mName").value="";
+ m("mCategory").value="Other";
+ m("mBrand").value="Other";
+ m("mSugarFree").checked=false;
+ m("mSize").value="";
+ m("mUnit").value="";
+ m("mQOffice").value=loc==="office"?q:0;
+ m("mQTrailer").value=loc==="trailer"?q:0;
+ m("mQCaboose").value=loc==="caboose"?q:0;
+ m("mNotes").value="";
+ document.getElementById("modalItem").classList.remove("hidden");
+}
+document.getElementById("mCancel").onclick=()=>document.getElementById("modalItem").classList.add("hidden");
+document.getElementById("mDelete").onclick=()=>{
+ let u=document.getElementById("mUPC").value;
+ delete inventory[u];saveInv();document.getElementById("modalItem").classList.add("hidden");renderTable();
+}
+document.getElementById("mSave").onclick=()=>{
+ let m=id=>document.getElementById(id).value;
+ let u=document.getElementById("mUPC").value;
+ inventory[u]={
+  upc:u,
+  name:m("mName"),
+  category:m("mCategory"),
+  brand:m("mBrand"),
+  sugar:document.getElementById("mSugarFree").checked,
+  size:m("mSize"),
+  unit:m("mUnit"),
+  qOffice:parseInt(m("mQOffice"))||0,
+  qTrailer:parseInt(m("mQTrailer"))||0,
+  qCaboose:parseInt(m("mQCaboose"))||0,
+  notes:m("mNotes")
+ };
+ saveInv();
+ document.getElementById("modalItem").classList.add("hidden");
+ renderTable();
+}
+
+/* Add new category / brand */
+document.getElementById("addCatBtn").onclick=()=>{
+ let c=prompt("New Category:");if(!c)return;
+ let sel=document.getElementById("mCategory");
+ let opt=new Option(c,c);sel.add(opt);sel.value=c;
+};
+document.getElementById("addBrandBtn").onclick=()=>{
+ let b=prompt("New Brand:");if(!b)return;
+ let sel=document.getElementById("mBrand");
+ let opt=new Option(b,b);sel.add(opt);sel.value=b;
+};
+
+/* -----------------------------------
+   INVENTORY TABLE
+----------------------------------- */
+function renderTable(){
+ let body=document.getElementById("invBody");
+ body.innerHTML="";
+ let s=document.getElementById("invSearch").value.toLowerCase();
+ Object.values(inventory).forEach(it=>{
+  if(s&&!it.name.toLowerCase().includes(s)&&!it.upc.includes(s))return;
+  let tr=document.createElement("tr");
+  tr.innerHTML=`<td>${it.name}</td><td>${it.upc}</td><td>${it.brand||""}</td><td>${it.category||""}</td>
+<td>${it.qOffice||0}</td><td>${it.qTrailer||0}</td><td>${it.qCaboose||0}</td>
+<td><button class="btn secondary" onclick="editItem('${it.upc}')">Edit</button></td>`;
+  body.appendChild(tr);
+ });
+}
+function editItem(u){
+ let it=inventory[u];if(!it)return;
+ document.getElementById("itemModalTitle").innerText="Edit Item";
+ let m=id=>document.getElementById(id);
+ m("mUPC").value=u;
+ m("mName").value=it.name;
+ m("mCategory").value=it.category;
+ m("mBrand").value=it.brand;
+ m("mSugarFree").checked=!!it.sugar;
+ m("mSize").value=it.size;
+ m("mUnit").value=it.unit;
+ m("mQOffice").value=it.qOffice||0;
+ m("mQTrailer").value=it.qTrailer||0;
+ m("mQCaboose").value=it.qCaboose||0;
+ m("mNotes").value=it.notes||"";
+ document.getElementById("modalItem").classList.remove("hidden");
+}
+
+/* -----------------------------------
+   EXPORT / IMPORT
+----------------------------------- */
+document.getElementById("btnExport").onclick=()=>{
+ let d=JSON.stringify(inventory,null,2);
+ let a=document.createElement("a");
+ a.href="data:application/json,"+encodeURIComponent(d);
+ a.download="brewtopia_inventory.json";
+ a.click();
+};
+document.getElementById("btnImport").onclick=()=>{
+ let inp=document.createElement("input");inp.type="file";inp.accept="application/json";
+ inp.onchange=e=>{
+  let f=e.target.files[0];if(!f)return;
+  let r=new FileReader();
+  r.onload=x=>{
+   try{inventory=JSON.parse(x.target.result);saveInv();renderTable();}
+   catch(err){alert("Invalid file");}
+  };
+  r.readAsText(f);
+ };
+ inp.click();
+};
+document.getElementById("invSearch").oninput=renderTable;
+</script>
+
+</body></html>
