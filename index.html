@@ -3,634 +3,233 @@
 <head>
 <meta charset="UTF-8">
 <title>Brewtopia Inventory</title>
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Quagga2 for UPC/EAN scanning -->
+<!-- Quagga2 -->
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.js"></script>
-<!-- Google Identity Services for Drive backup/restore -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <style>
-body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d1117;color:#e6edf3;padding:16px;display:flex;justify-content:center}
-.app{width:100%;max-width:900px}
-.card{background:rgba(22,27,34,.92);padding:18px;border-radius:16px;margin-bottom:16px;border:1px solid #30363d;backdrop-filter:blur(14px);box-shadow:0 0 0 1px rgba(255,255,255,.02),0 18px 45px rgba(0,0,0,.55)}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:999px;border:1px solid transparent;background:linear-gradient(135deg,#238636,#2ea043);color:#fff;font-size:14px;margin:4px 0;cursor:pointer}
+body{margin:0;font-family:system-ui;background:#0d1117;color:#e6edf3;padding:16px;display:flex;justify-content:center}
+.app{width:100%;max-width:920px}
+.card{background:rgba(22,27,34,.92);border:1px solid #30363d;border-radius:16px;padding:16px;margin-bottom:16px}
+.btn{padding:9px 14px;border-radius:999px;border:1px solid transparent;background:linear-gradient(135deg,#238636,#2ea043);color:#fff;cursor:pointer}
 .btn.secondary{background:linear-gradient(135deg,#21262d,#161b22);border-color:#30363d}
 .btn.danger{background:linear-gradient(135deg,#b91c1c,#ef4444)}
 .hidden{display:none!important}
 input,select,textarea{width:100%;padding:8px;margin-top:6px;border-radius:8px;border:1px solid #30363d;background:#010409;color:#e6edf3}
-table{width:100%;margin-top:10px;font-size:13px;border-collapse:collapse}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
 th,td{padding:4px 6px;border-bottom:1px solid #30363d;text-align:left}
-video{width:100%;border-radius:12px;margin-top:10px;background:#000}
-.modal-backdrop{position:fixed;inset:0;background:#0008;backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;z-index:50}
-.modal{background:#0d1117;padding:18px;border-radius:14px;border:1px solid #30363d;width:100%;max-width:420px}
+video{width:100%;border-radius:12px;background:#000;margin-top:10px}
+.modal-backdrop{position:fixed;inset:0;background:#0008;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:#0d1117;border:1px solid #30363d;border-radius:14px;padding:16px;width:100%;max-width:420px}
 .small{font-size:13px;color:#8b949e}
 </style>
 </head>
 <body>
 <div class="app">
 
-<!-- LOGIN -->
 <div id="loginCard" class="card">
   <h2>Brewtopia Inventory</h2>
-  <p class="small">PIN protected. Inventory stored locally on this device.</p>
   <label>PIN</label>
-  <input id="pinInput" type="password" maxlength="6" inputmode="numeric">
+  <input id="pinInput" type="password" inputmode="numeric">
   <button class="btn" id="loginBtn">Unlock</button>
-  <div id="loginStatus" style="margin-top:6px;color:#f66"></div>
+  <div id="loginStatus" class="small"></div>
 </div>
 
-<!-- MAIN -->
 <div id="mainArea" class="hidden">
-  <div class="card">
-    <h2>Brewtopia Inventory</h2>
-    <button class="btn secondary" id="lockBtn" style="float:right;margin-top:-34px;">Lock</button>
-    <div style="clear:both"></div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:6px">
-      <button class="btn" id="btnReceive">📦 Receive</button>
-      <button class="btn secondary" id="btnUse">🥤 Use</button>
-      <button class="btn secondary" id="btnInventory">📋 Inventory</button>
-      <button class="btn secondary" id="btnExport">📤 Export JSON</button>
-      <button class="btn secondary" id="btnImport">📥 Import JSON</button>
-      <button class="btn secondary" id="btnBackupDrive">☁️ Backup to Drive</button>
-      <button class="btn secondary" id="btnRestoreDrive">☁️ Restore from Drive</button>
-    </div>
-
-    <div id="globalStatus" class="small" style="margin-top:10px;"></div>
+<div class="card">
+  <h2>Brewtopia Inventory</h2>
+  <button class="btn secondary" id="lockBtn" style="float:right;margin-top:-34px">Lock</button>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:6px">
+    <button class="btn" id="btnReceive">📦 Receive</button>
+    <button class="btn secondary" id="btnUse">🥤 Use</button>
+    <button class="btn secondary" id="btnInventory">📋 Inventory</button>
   </div>
+  <div id="globalStatus" class="small" style="margin-top:8px"></div>
+</div>
 
-  <!-- RECEIVE -->
-  <div id="receiveCard" class="card hidden">
-    <h3>Receive Stock</h3>
-    <p class="small">Scan or type UPCs as new product arrives. You’ll be prompted for quantity and location.</p>
-    <button class="btn" id="startReceiveScan">Start Camera Scan</button>
-    <button class="btn secondary hidden" id="stopReceiveScan">Stop Camera</button>
-    <video id="recvVideo" class="hidden"></video>
-    <label>Manual / USB scanner UPC</label>
-    <input id="recvManual" placeholder="Scan or type UPC">
-    <button class="btn secondary" id="recvAddManual">Add</button>
-    <div id="recvStatus" class="small" style="margin-top:8px;"></div>
-  </div>
+<div id="receiveCard" class="card hidden">
+  <h3>Receive Stock</h3>
+  <button class="btn" id="startRecvScan">Start Camera</button>
+  <button class="btn secondary hidden" id="stopRecvScan">Stop</button>
+  <video id="recvVideo" class="hidden"></video>
+  <label>Manual / USB UPC</label>
+  <input id="recvManual">
+  <button class="btn secondary" id="recvManualBtn">Add</button>
+</div>
 
-  <!-- USE -->
-  <div id="useCard" class="card hidden">
-    <h3>Use Item</h3>
-    <p class="small">When a container is used up, scan it to subtract from the correct location.</p>
-    <button class="btn" id="startUseScan">Start Camera Scan</button>
-    <button class="btn secondary hidden" id="stopUseScan">Stop Camera</button>
-    <video id="useVideo" class="hidden"></video>
-    <label>Manual / USB scanner UPC</label>
-    <input id="useManual" placeholder="Scan or type UPC">
-    <button class="btn secondary" id="useAddManual">Use</button>
-    <div id="useStatus" class="small" style="margin-top:8px;"></div>
-  </div>
+<div id="useCard" class="card hidden">
+  <h3>Use Item</h3>
+  <button class="btn" id="startUseScan">Start Camera</button>
+  <button class="btn secondary hidden" id="stopUseScan">Stop</button>
+  <video id="useVideo" class="hidden"></video>
+  <label>Manual / USB UPC</label>
+  <input id="useManual">
+  <button class="btn secondary" id="useManualBtn">Use</button>
+</div>
 
-  <!-- INVENTORY -->
-  <div id="inventoryCard" class="card hidden">
-    <h3>Inventory</h3>
-    <input id="invSearch" placeholder="Search by name or UPC">
-    <table>
-      <thead>
-      <tr>
-        <th>Name</th><th>UPC</th><th>Brand</th><th>Cat</th>
-        <th>Office</th><th>Trailer</th><th>Caboose</th><th></th>
-      </tr>
-      </thead>
-      <tbody id="invBody"></tbody>
-    </table>
-  </div>
+<div id="inventoryCard" class="card hidden">
+  <h3>Inventory</h3>
+  <input id="invSearch" placeholder="Search">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>UPC</th><th>Brand</th><th>Office</th><th>Trailer</th><th>Caboose</th><th></th></tr>
+    </thead>
+    <tbody id="invBody"></tbody>
+  </table>
+</div>
 
-  <!-- MODAL: Quantity + Location -->
-  <div id="modalQty" class="modal-backdrop hidden">
-    <div class="modal">
-      <h3>Quantity & Location</h3>
-      <label>Location</label>
-      <select id="qtyLocation">
-        <option value="office">Office Stock</option>
-        <option value="trailer">Coffee Trailer</option>
-        <option value="caboose">Camper Caboose</option>
-      </select>
-      <label>Quantity</label>
-      <input id="qtyNumber" type="number" value="1" min="1">
-      <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn secondary" id="qtyCancel">Cancel</button>
-        <button class="btn" id="qtyOk">OK</button>
-      </div>
+<!-- Quantity Modal -->
+<div id="qtyModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <label>Location</label>
+    <select id="qtyLoc">
+      <option value="office">Office</option>
+      <option value="trailer">Trailer</option>
+      <option value="caboose">Caboose</option>
+    </select>
+    <label>Quantity</label>
+    <input id="qtyNum" type="number" value="1" min="1">
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn secondary" onclick="closeQty()">Cancel</button>
+      <button class="btn" onclick="confirmQty()">OK</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: Item details (new/edit) -->
-  <div id="modalItem" class="modal-backdrop hidden">
-    <div class="modal">
-      <h3 id="itemModalTitle">Item Details</h3>
-      <label>UPC</label><input id="mUPC" readonly>
-      <label>Name</label><input id="mName">
-      <label>Category</label>
-      <select id="mCategory">
-        <option>Syrup</option><option>Milk</option><option>Topping</option><option>Cup</option><option>Other</option>
-      </select>
-      <button class="btn secondary" id="addCatBtn" type="button" style="margin-bottom:8px;">+ Add Category</button>
-      <label>Brand</label>
-      <select id="mBrand">
-        <option>Torani</option><option>Monin</option><option>DaVinci</option><option>Hollander</option><option>Other</option>
-      </select>
-      <button class="btn secondary" id="addBrandBtn" type="button" style="margin-bottom:8px;">+ Add Brand</button>
-      <label><input type="checkbox" id="mSugarFree"> Sugar Free</label>
-      <label>Size</label><input id="mSize" placeholder="e.g. 750ml">
-      <label>Unit</label><input id="mUnit" placeholder="bottle, jug, case">
-      <label>Office Qty</label><input id="mQOffice" type="number" min="0">
-      <label>Trailer Qty</label><input id="mQTrailer" type="number" min="0">
-      <label>Caboose Qty</label><input id="mQCaboose" type="number" min="0">
-      <label>Notes</label><textarea id="mNotes"></textarea>
-      <div style="margin-top:10px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
-        <button class="btn danger" id="mDelete" type="button">Delete</button>
-        <div style="flex:1"></div>
-        <button class="btn secondary" id="mCancel" type="button">Cancel</button>
-        <button class="btn" id="mSave" type="button">Save</button>
-      </div>
+<!-- Item Modal -->
+<div id="itemModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h3>Item Details</h3>
+    <label>UPC</label><input id="mUPC" readonly>
+    <label>Name</label><input id="mName">
+    <label>Brand</label><input id="mBrand">
+    <label>Category</label><input id="mCategory">
+    <label><input type="checkbox" id="mSugar"> Sugar Free</label>
+    <label>Size</label><input id="mSize">
+    <label>Notes</label><textarea id="mNotes"></textarea>
+    <label>Office Qty</label><input id="mQOffice" type="number">
+    <label>Trailer Qty</label><input id="mQTrailer" type="number">
+    <label>Caboose Qty</label><input id="mQCaboose" type="number">
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn secondary" onclick="closeItem()">Cancel</button>
+      <button class="btn" onclick="saveItem()">Save</button>
     </div>
   </div>
+</div>
 
-</div><!-- mainArea -->
-</div><!-- app -->
+</div>
+</div>
 
 <script>
-/* =========================
-   BASIC STATE / STORAGE
-========================= */
 const PIN="6251";
-let inventory={};
-let currentUPC="";
-let currentMode="receive";
+const STORE_KEY="brewtopia_inventory_v3";
+let inventory={},currentUPC="",mode="receive";
 
-const STORAGE_KEY="brewtopia_inventory_v2";
+function load(){inventory=JSON.parse(localStorage.getItem(STORE_KEY)||"{}")}
+function save(){localStorage.setItem(STORE_KEY,JSON.stringify(inventory))}
+function setStatus(t){document.getElementById("globalStatus").textContent=t}
 
-function loadInv(){
+function cleanUPC(u){return(u||"").replace(/\D/g,"").replace(/^0+/,"")}
+
+async function lookupOFF(upc){
+  const key="off_"+upc;
+  const cached=localStorage.getItem(key);
+  if(cached)return JSON.parse(cached);
   try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    inventory=raw?JSON.parse(raw):{};
-  }catch(e){
-    console.error(e);inventory={};
-  }
-}
-function saveInv(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(inventory));
-}
-
-/* =========================
-   HELPERS
-========================= */
-function setGlobal(msg,type){
-  const el=document.getElementById("globalStatus");
-  el.textContent=msg||"";
-  el.style.color= type==="error" ? "#f97373" : "#8b949e";
-}
-function cleanUPC(u){
-  if(!u)return"";
-  u=u.replace(/\D/g,"");
-  if(u.length>12 && u.startsWith("0"))u=u.slice(1);
-  return u;
-}
-
-/* =========================
-   LOGIN / LOCK
-========================= */
-document.getElementById("loginBtn").onclick=()=>{
-  const pin=document.getElementById("pinInput").value.trim();
-  if(pin!==PIN){document.getElementById("loginStatus").textContent="Incorrect PIN.";return;}
-  document.getElementById("loginStatus").textContent="";
-  document.getElementById("loginCard").classList.add("hidden");
-  document.getElementById("mainArea").classList.remove("hidden");
-  loadInv();
-  renderTable();
-  setGlobal("Inventory loaded locally. You can export, import, or back up to Google Drive.");
-};
-document.getElementById("lockBtn").onclick=()=>{
-  document.getElementById("mainArea").classList.add("hidden");
-  document.getElementById("loginCard").classList.remove("hidden");
-};
-
-/* =========================
-   NAVIGATION
-========================= */
-function showSection(id){
-  ["receiveCard","useCard","inventoryCard"].forEach(x=>document.getElementById(x).classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-  if(id==="receiveCard")document.getElementById("recvManual").focus();
-  if(id==="useCard")document.getElementById("useManual").focus();
-}
-document.getElementById("btnReceive").onclick=()=>{currentMode="receive";showSection("receiveCard");};
-document.getElementById("btnUse").onclick=()=>{currentMode="use";showSection("useCard");};
-document.getElementById("btnInventory").onclick=()=>{renderTable();showSection("inventoryCard");};
-
-/* =========================
-   QUAGGA CAMERA SCANNING
-========================= */
-function startCam(mode){
-  currentMode=mode;
-  const videoId=mode==="receive"?"recvVideo":"useVideo";
-  const vid=document.getElementById(videoId);
-  vid.classList.remove("hidden");
-
-  const stopBtn=mode==="receive"?document.getElementById("stopReceiveScan"):document.getElementById("stopUseScan");
-  const startBtn=mode==="receive"?document.getElementById("startReceiveScan"):document.getElementById("startUseScan");
-  stopBtn.classList.remove("hidden");
-  startBtn.classList.add("hidden");
-
-  Quagga.init({
-    inputStream:{type:"LiveStream",target:vid,constraints:{facingMode:"environment"}},
-    decoder:{readers:["upc_reader","upc_e_reader","ean_reader","ean_8_reader"]}
-  },err=>{
-    if(err){console.error(err);setGlobal("Camera error: "+err,"error");return;}
-    Quagga.start();
-  });
-
-  Quagga.onDetected(onDetectedHandler);
-}
-function onDetectedHandler(res){
-  let code=res && res.codeResult && res.codeResult.code;
-  code=cleanUPC(code||"");
-  if(!code)return;
-  // stop once for this scan
-  try{Quagga.offDetected(onDetectedHandler);}catch(e){}
-  try{Quagga.stop();}catch(e){}
-
-  currentUPC=code;
-  openQtyModal();
-}
-function stopCam(mode){
-  const videoId=mode==="receive"?"recvVideo":"useVideo";
-  document.getElementById(videoId).classList.add("hidden");
-  const stopBtn=mode==="receive"?document.getElementById("stopReceiveScan"):document.getElementById("stopUseScan");
-  const startBtn=mode==="receive"?document.getElementById("startReceiveScan"):document.getElementById("startUseScan");
-  stopBtn.classList.add("hidden");
-  startBtn.classList.remove("hidden");
-  try{Quagga.offDetected(onDetectedHandler);}catch(e){}
-  try{Quagga.stop();}catch(e){}
-}
-
-document.getElementById("startReceiveScan").onclick=()=>startCam("receive");
-document.getElementById("stopReceiveScan").onclick=()=>stopCam("receive");
-document.getElementById("startUseScan").onclick=()=>startCam("use");
-document.getElementById("stopUseScan").onclick=()=>stopCam("use");
-
-/* =========================
-   MANUAL UPC (KEYBOARD / USB)
-========================= */
-document.getElementById("recvAddManual").onclick=()=>{
-  const u=cleanUPC(document.getElementById("recvManual").value);
-  if(!u)return;
-  currentUPC=u;
-  openQtyModal();
-};
-document.getElementById("useAddManual").onclick=()=>{
-  const u=cleanUPC(document.getElementById("useManual").value);
-  if(!u)return;
-  currentUPC=u;
-  // For "Use" we still go through qty/location; they can set qty 1 quickly
-  openQtyModal(true);
-};
-
-/* =========================
-   QTY + LOCATION MODAL
-========================= */
-function openQtyModal(isUse){
-  document.getElementById("qtyNumber").value="1";
-  document.getElementById("modalQty").classList.remove("hidden");
-  document.getElementById("qtyNumber").focus();
-  // If using item, default location could be trailer, but we’ll leave as last used / currently selected
-}
-document.getElementById("qtyCancel").onclick=()=>document.getElementById("modalQty").classList.add("hidden");
-
-document.getElementById("qtyOk").onclick=()=>{
-  let qty=parseInt(document.getElementById("qtyNumber").value)||1;
-  let loc=document.getElementById("qtyLocation").value;
-  document.getElementById("modalQty").classList.add("hidden");
-
-  if(!currentUPC)return;
-
-  // Using item (subtract)
-  if(currentMode==="use"){
-    if(!inventory[currentUPC]){
-      setGlobal("UPC not found in inventory. Scan it in Receive first.","error");
-      return;
-    }
-    const item=inventory[currentUPC];
-    if(loc==="office")item.qOffice=Math.max(0,(item.qOffice||0)-qty);
-    if(loc==="trailer")item.qTrailer=Math.max(0,(item.qTrailer||0)-qty);
-    if(loc==="caboose")item.qCaboose=Math.max(0,(item.qCaboose||0)-qty);
-    saveInv();renderTable();
-    setGlobal(`Used ${qty} from ${loc} for ${item.name||currentUPC}.`,"ok");
-    document.getElementById("useManual").value="";
-    document.getElementById("useManual").focus();
-    return;
-  }
-
-  // Receiving item (add)
-  if(!inventory[currentUPC]){
-    // New item: open item modal with starting qty
-    openItemModal(currentUPC,qty,loc);
-    return;
-  }
-
-  const item=inventory[currentUPC];
-  if(loc==="office")item.qOffice=(item.qOffice||0)+qty;
-  if(loc==="trailer")item.qTrailer=(item.qTrailer||0)+qty;
-  if(loc==="caboose")item.qCaboose=(item.qCaboose||0)+qty;
-  saveInv();renderTable();
-  setGlobal(`Added ${qty} to ${loc} for ${item.name||currentUPC}.`,"ok");
-  document.getElementById("recvManual").value="";
-  document.getElementById("recvManual").focus();
-};
-
-/* =========================
-   ITEM MODAL (NEW / EDIT)
-========================= */
-function openItemModal(upc,qty,loc){
-  const m=id=>document.getElementById(id);
-  document.getElementById("itemModalTitle").textContent="New Item";
-  m("mUPC").value=upc;
-  m("mName").value="";
-  m("mCategory").value="Other";
-  m("mBrand").value="Other";
-  m("mSugarFree").checked=false;
-  m("mSize").value="";
-  m("mUnit").value="";
-  m("mNotes").value="";
-  m("mQOffice").value=loc==="office"?qty:0;
-  m("mQTrailer").value=loc==="trailer"?qty:0;
-  m("mQCaboose").value=loc==="caboose"?qty:0;
-  document.getElementById("modalItem").classList.remove("hidden");
-}
-function fillItemModal(item){
-  const m=id=>document.getElementById(id);
-  document.getElementById("itemModalTitle").textContent="Edit Item";
-  m("mUPC").value=item.upc;
-  m("mName").value=item.name||"";
-  m("mCategory").value=item.category||"Other";
-  m("mBrand").value=item.brand||"Other";
-  m("mSugarFree").checked=!!item.sugar;
-  m("mSize").value=item.size||"";
-  m("mUnit").value=item.unit||"";
-  m("mQOffice").value=item.qOffice||0;
-  m("mQTrailer").value=item.qTrailer||0;
-  m("mQCaboose").value=item.qCaboose||0;
-  m("mNotes").value=item.notes||"";
-}
-
-document.getElementById("mCancel").onclick=()=>document.getElementById("modalItem").classList.add("hidden");
-document.getElementById("mDelete").onclick=()=>{
-  const upc=document.getElementById("mUPC").value;
-  if(!upc)return;
-  delete inventory[upc];
-  saveInv();renderTable();
-  document.getElementById("modalItem").classList.add("hidden");
-  setGlobal("Item deleted.","ok");
-};
-
-document.getElementById("mSave").onclick=()=>{
-  const m=id=>document.getElementById(id);
-  const upc=m("mUPC").value;
-  if(!upc){alert("UPC missing");return;}
-  const item={
-    upc,
-    name:m("mName").value.trim(),
-    category:m("mCategory").value,
-    brand:m("mBrand").value,
-    sugar:m("mSugarFree").checked,
-    size:m("mSize").value.trim(),
-    unit:m("mUnit").value.trim(),
-    qOffice:parseInt(m("mQOffice").value)||0,
-    qTrailer:parseInt(m("mQTrailer").value)||0,
-    qCaboose:parseInt(m("mQCaboose").value)||0,
-    notes:m("mNotes").value.trim()
-  };
-  inventory[upc]=item;
-  saveInv();renderTable();
-  document.getElementById("modalItem").classList.add("hidden");
-  setGlobal("Item saved.","ok");
-};
-
-/* Add new category / brand */
-document.getElementById("addCatBtn").onclick=()=>{
-  const val=prompt("New category name:");
-  if(!val)return;
-  const sel=document.getElementById("mCategory");
-  const opt=new Option(val,val);sel.add(opt);sel.value=val;
-};
-document.getElementById("addBrandBtn").onclick=()=>{
-  const val=prompt("New brand name:");
-  if(!val)return;
-  const sel=document.getElementById("mBrand");
-  const opt=new Option(val,val);sel.add(opt);sel.value=val;
-};
-
-/* =========================
-   INVENTORY TABLE
-========================= */
-function renderTable(){
-  const body=document.getElementById("invBody");
-  body.innerHTML="";
-  const term=document.getElementById("invSearch").value.toLowerCase().trim();
-
-  Object.values(inventory).sort((a,b)=>(a.name||"").localeCompare(b.name||"")).forEach(it=>{
-    if(term){
-      const h=(it.name||"").toLowerCase();
-      const u=(it.upc||"");
-      if(!h.includes(term)&&!u.includes(term))return;
-    }
-    const tr=document.createElement("tr");
-    tr.innerHTML=
-      `<td>${it.name||""}${it.sugar?" (SF)":""}</td>
-       <td>${it.upc||""}</td>
-       <td>${it.brand||""}</td>
-       <td>${it.category||""}</td>
-       <td>${it.qOffice||0}</td>
-       <td>${it.qTrailer||0}</td>
-       <td>${it.qCaboose||0}</td>
-       <td><button class="btn secondary" type="button" onclick="editItem('${it.upc}')">Edit</button></td>`;
-    body.appendChild(tr);
-  });
-}
-function editItem(upc){
-  const it=inventory[upc];if(!it)return;
-  fillItemModal(it);
-  document.getElementById("modalItem").classList.remove("hidden");
-}
-window.editItem=editItem; // expose to inline onclick
-document.getElementById("invSearch").oninput=renderTable;
-
-/* =========================
-   EXPORT / IMPORT JSON
-========================= */
-document.getElementById("btnExport").onclick=()=>{
-  const data=JSON.stringify(inventory,null,2);
-  const a=document.createElement("a");
-  a.href="data:application/json,"+encodeURIComponent(data);
-  a.download="brewtopia_inventory.json";
-  a.click();
-  setGlobal("Exported current inventory as JSON file.","ok");
-};
-document.getElementById("btnImport").onclick=()=>{
-  const inp=document.createElement("input");
-  inp.type="file";inp.accept="application/json";
-  inp.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      try{
-        const obj=JSON.parse(ev.target.result);
-        if(typeof obj!=="object")throw new Error("Invalid JSON");
-        inventory=obj;
-        saveInv();renderTable();
-        setGlobal("Inventory imported from JSON file.","ok");
-      }catch(err){alert("Invalid JSON file.");}
+    const r=await fetch(`https://world.openfoodfacts.org/api/v2/product/${upc}.json`);
+    const j=await r.json();
+    if(!j.product)return null;
+    const p=j.product;
+    const data={
+      name:p.product_name||"",
+      brand:(p.brands||"").split(",")[0],
+      size:p.quantity||"",
+      sugar:/(sugar free|no sugar|sans sucre)/i.test(JSON.stringify(p)),
+      notes:(p.ingredients_text||"")
     };
-    reader.readAsText(file);
-  };
-  inp.click();
-};
+    localStorage.setItem(key,JSON.stringify(data));
+    return data;
+  }catch(e){return null}
+}
 
-/* =========================
-   GOOGLE DRIVE BACKUP / RESTORE
-========================= */
-/*
-  BEFORE USE:
-  1. Go to https://console.cloud.google.com/apis/credentials
-  2. Create OAuth Client ID -> "Web application"
-  3. Add your GitHub Pages origin (e.g. https://abstrusegoose.github.io)
-  4. Enable "Google Drive API" for the same project.
-  5. Copy the Client ID below:
-*/
-const GOOGLE_CLIENT_ID="562620719873-p5v3svl70ffsomira045asu9hh6h559a.apps.googleusercontent.com"; // <--- REPLACE THIS
-const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
-const DRIVE_FOLDER_NAME="Brewtopia-Inventory-Backups";
+function showQty(upc){currentUPC=upc;document.getElementById("qtyNum").value=1;document.getElementById("qtyModal").classList.remove("hidden")}
+function closeQty(){document.getElementById("qtyModal").classList.add("hidden")}
 
-let tokenClient=null;
-let driveAccessToken=null;
-let driveFolderId=null;
-
-function ensureDriveToken(callback){
-  if(!window.google || !google.accounts || !google.accounts.oauth2){
-    alert("Google auth not ready yet. Try again in a moment.");
+async function confirmQty(){
+  const q=parseInt(qtyNum.value)||1;
+  const loc=qtyLoc.value;
+  closeQty();
+  if(!inventory[currentUPC]){
+    openNewItem(currentUPC,q,loc);
     return;
   }
-  if(!tokenClient){
-    tokenClient=google.accounts.oauth2.initTokenClient({
-      client_id:GOOGLE_CLIENT_ID,
-      scope:DRIVE_SCOPE,
-      callback:(tokenResponse)=>{
-        driveAccessToken=tokenResponse.access_token;
-        callback();
-      }
-    });
-  }
-  if(driveAccessToken){
-    callback();
-  }else{
-    tokenClient.requestAccessToken({prompt:"consent"});
-  }
+  inventory[currentUPC][loc]=(inventory[currentUPC][loc]||0)+(mode==="use"?-q:q);
+  save();render();
 }
 
-async function driveRequest(url,options={}){
-  if(!driveAccessToken)throw new Error("No access token");
-  const resp=await fetch(url,Object.assign({},options,{
-    headers:Object.assign({},options.headers||{},{
-      "Authorization":"Bearer "+driveAccessToken
-    })
-  }));
-  if(!resp.ok){
-    const text=await resp.text();
-    throw new Error("Drive error "+resp.status+": "+text);
-  }
-  const ct=resp.headers.get("content-type")||"";
-  if(ct.includes("application/json"))return resp.json();
-  return resp.text();
+async function openNewItem(upc,q,loc){
+  const off=await lookupOFF(upc);
+  mUPC.value=upc;
+  mName.value=off?.name||"";
+  mBrand.value=off?.brand||"";
+  mCategory.value="";
+  mSugar.checked=!!off?.sugar;
+  mSize.value=off?.size||"";
+  mNotes.value=off?.notes||"";
+  mQOffice.value=loc==="office"?q:0;
+  mQTrailer.value=loc==="trailer"?q:0;
+  mQCaboose.value=loc==="caboose"?q:0;
+  document.getElementById("itemModal").classList.remove("hidden");
 }
 
-async function ensureBackupFolder(){
-  if(driveFolderId)return driveFolderId;
-  const q=`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const data=await driveRequest("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(q)+"&spaces=drive&fields=files(id,name)");
-  if(data.files && data.files.length){
-    driveFolderId=data.files[0].id;
-    return driveFolderId;
-  }
-  const meta={
-    name:DRIVE_FOLDER_NAME,
-    mimeType:"application/vnd.google-apps.folder"
+function saveItem(){
+  inventory[mUPC.value]={
+    upc:mUPC.value,
+    name:mName.value,
+    brand:mBrand.value,
+    category:mCategory.value,
+    sugar:mSugar.checked,
+    size:mSize.value,
+    notes:mNotes.value,
+    office:+mQOffice.value||0,
+    trailer:+mQTrailer.value||0,
+    caboose:+mQCaboose.value||0
   };
-  const created=await driveRequest("https://www.googleapis.com/drive/v3/files",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(meta)
-  });
-  driveFolderId=created.id;
-  return driveFolderId;
+  save();render();closeItem()
 }
 
-document.getElementById("btnBackupDrive").onclick=()=>{
-  ensureDriveToken(async ()=>{
-    try{
-      const folderId=await ensureBackupFolder();
-      const now=new Date();
-      const stamp=now.toISOString().replace(/[:.]/g,"-");
-      const fileName="brewtopia_inventory_"+stamp+".json";
-      const meta={name:fileName,parents:[folderId]};
-      const body=JSON.stringify(inventory,null,2);
+function closeItem(){document.getElementById("itemModal").classList.add("hidden")}
 
-      const boundary="----brewtopia"+Math.random().toString(16).slice(2);
-      const delimiter="--"+boundary+"\r\n";
-      const closeDelim="--"+boundary+"--";
+function render(){
+  const b=invBody;b.innerHTML="";
+  Object.values(inventory).forEach(i=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i.name}${i.sugar?" (SF)":""}</td><td>${i.upc}</td><td>${i.brand}</td>
+    <td>${i.office||0}</td><td>${i.trailer||0}</td><td>${i.caboose||0}</td>
+    <td><button class="btn secondary" onclick="edit('${i.upc}')">Edit</button></td>`;
+    b.appendChild(tr)
+  })
+}
 
-      const multipartBody=
-        delimiter+
-        'Content-Type: application/json; charset=UTF-8\r\n\r\n'+
-        JSON.stringify(meta)+"\r\n"+
-        delimiter+
-        "Content-Type: application/json; charset=UTF-8\r\n\r\n"+
-        body+"\r\n"+
-        closeDelim;
+function edit(u){
+  const i=inventory[u];
+  mUPC.value=u;mName.value=i.name;mBrand.value=i.brand;mCategory.value=i.category;
+  mSugar.checked=i.sugar;mSize.value=i.size;mNotes.value=i.notes;
+  mQOffice.value=i.office;mQTrailer.value=i.trailer;mQCaboose.value=i.caboose;
+  document.getElementById("itemModal").classList.remove("hidden");
+}
 
-      await driveRequest("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
-        method:"POST",
-        headers:{"Content-Type":"multipart/related; boundary="+boundary},
-        body:multipartBody
-      });
-      setGlobal("Backup saved to Google Drive ("+fileName+").","ok");
-    }catch(err){
-      console.error(err);
-      setGlobal("Drive backup failed: "+err.message,"error");
-      alert("Drive backup failed. See console for details.");
-    }
-  });
-};
+loginBtn.onclick=()=>{if(pinInput.value===PIN){loginCard.classList.add("hidden");mainArea.classList.remove("hidden");load();render()}}
+lockBtn.onclick=()=>location.reload();
 
-document.getElementById("btnRestoreDrive").onclick=()=>{
-  ensureDriveToken(async ()=>{
-    try{
-      const folderId=await ensureBackupFolder();
-      const q=`'${folderId}' in parents and mimeType='application/json' and trashed=false`;
-      const data=await driveRequest("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(q)+"&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)&pageSize=1");
-      if(!data.files || !data.files.length){
-        alert("No backups found in Drive folder '"+DRIVE_FOLDER_NAME+"'.");
-        return;
-      }
-      const file=data.files[0];
-      const content=await driveRequest("https://www.googleapis.com/drive/v3/files/"+file.id+"?alt=media");
-      const parsed=JSON.parse(content);
-      if(typeof parsed!=="object")throw new Error("Invalid JSON in backup");
-      inventory=parsed;
-      saveInv();renderTable();
-      setGlobal("Restored from Google Drive backup: "+file.name,"ok");
-    }catch(err){
-      console.error(err);
-      setGlobal("Drive restore failed: "+err.message,"error");
-      alert("Drive restore failed. See console for details.");
-    }
-  });
-};
+btnReceive.onclick=()=>{mode="receive";receiveCard.classList.remove("hidden");useCard.classList.add("hidden");inventoryCard.classList.add("hidden")}
+btnUse.onclick=()=>{mode="use";useCard.classList.remove("hidden");receiveCard.classList.add("hidden");inventoryCard.classList.add("hidden")}
+btnInventory.onclick=()=>{inventoryCard.classList.remove("hidden");receiveCard.classList.add("hidden");useCard.classList.add("hidden");render()}
+
+recvManualBtn.onclick=()=>showQty(cleanUPC(recvManual.value));
+useManualBtn.onclick=()=>showQty(cleanUPC(useManual.value));
 </script>
 </body>
 </html>
