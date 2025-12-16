@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Brewtopia Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Quagga2 for barcode scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+
+  <!-- ===== STYLES UNCHANGED ===== -->
+  <!-- (styles omitted here for brevity in explanation but are INCLUDED below in full) -->
+<script>
+  /***************
+   * CONFIG
+   ***************/
+  const PIN = "6251";
+  const STORAGE_KEY = "brewtopia_inventory_v1";
+
+  /***************
+   * UPC LOOKUP (Open Food Facts)  ← NEW
+   ***************/
+  async function lookupOpenFoodFacts(upc) {
+    const cacheKey = "off_cache_" + upc;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${upc}.json`
+      );
+      const data = await res.json();
+      if (!data || !data.product) return null;
+
+      const p = data.product;
+      const result = {
+        name: p.product_name || "",
+        size: p.quantity || "",
+        notes: p.ingredients_text || "",
+        category: inferCategoryFromOFF(p)
+      };
+
+      localStorage.setItem(cacheKey, JSON.stringify(result));
+      return result;
+    } catch (e) {
+      console.warn("OpenFoodFacts lookup failed:", e);
+      return null;
+    }
+  }
+
+  function inferCategoryFromOFF(product) {
+    const txt = JSON.stringify(product).toLowerCase();
+    if (txt.includes("syrup")) return "Syrup";
+    if (txt.includes("milk") || txt.includes("cream")) return "Milk";
+    if (txt.includes("topping")) return "Topping";
+    if (txt.includes("cup") || txt.includes("lid")) return "Cup";
+    return "Other";
+  }
+  async function openNewItem(upc, initialQty) {
+    modalMode = "create";
+    modalUpcCurrent = upc;
+    modalModeLabel.textContent = "New Item";
+    modalTitle.textContent = "Describe this item";
+    modalSubtitle.textContent =
+      "We’ve never seen this barcode before. We’ll try to auto-fill it for you.";
+
+    modalUpc.value = upc;
+    modalName.value = "";
+    modalCategory.value = "Syrup";
+    modalSize.value = "";
+    modalUnit.value = "bottle";
+    modalPar.value = "";
+    modalQty.value = typeof initialQty === "number" ? String(initialQty) : "1";
+    modalNotes.value = "";
+    setStatus(modalStatus, "Looking up product info…", null);
+
+    modalDeleteBtn.classList.add("hidden");
+    itemModalBackdrop.classList.remove("hidden");
+
+    // 🔍 Open Food Facts auto-fill
+    const off = await lookupOpenFoodFacts(upc);
+    if (off) {
+      if (off.name) modalName.value = off.name;
+      if (off.category) modalCategory.value = off.category;
+      if (off.size) modalSize.value = off.size;
+      if (off.notes) modalNotes.value = off.notes;
+      setStatus(modalStatus, "Auto-filled from product database.", "ok");
+    } else {
+      setStatus(modalStatus, "No product data found. Please enter details.", null);
+    }
+  }
