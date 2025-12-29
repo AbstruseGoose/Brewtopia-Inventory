@@ -1,0 +1,2963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Brewtopia Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Quagga2 for barcode scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-body: #0d1117;
+      --bg-card: rgba(22, 27, 34, 0.92);
+      --bg-card-soft: rgba(22, 27, 34, 0.6);
+      --border-subtle: #30363d;
+      --text-primary: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #2f81f7;
+      --accent-soft: rgba(47, 129, 247, 0.2);
+
+      --cat-syrup: rgba(244, 114, 182, 0.18);
+      --cat-syrup-border: rgba(244, 114, 182, 0.6);
+      --cat-milk: rgba(56, 189, 248, 0.18);
+      --cat-milk-border: rgba(56, 189, 248, 0.6);
+      --cat-topping: rgba(251, 191, 36, 0.18);
+      --cat-topping-border: rgba(251, 191, 36, 0.6);
+      --cat-cup: rgba(52, 211, 153, 0.18);
+      --cat-cup-border: rgba(52, 211, 153, 0.6);
+      --cat-other: rgba(148, 163, 184, 0.18);
+      --cat-other-border: rgba(148, 163, 184, 0.6);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #161b22 0, #0d1117 55%, #020409 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      padding: 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0 0 0.3rem;
+      font-weight: 600;
+    }
+
+    p { margin: 0.2rem 0 0.6rem; }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-subtle);
+      box-shadow:
+        0 18px 45px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(18px);
+    }
+
+    .card-soft {
+      background: var(--bg-card-soft);
+      border-radius: 14px;
+      padding: 14px 16px;
+      border: 1px solid rgba(48, 54, 61, 0.9);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: linear-gradient(135deg, #238636, #2ea043);
+      color: #f0fdf4;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 18px rgba(34,197,94,0.35);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease, opacity 0.08s ease;
+      white-space: nowrap;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 10px 22px rgba(34,197,94,0.55);
+    }
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 3px 8px rgba(34,197,94,0.5);
+    }
+
+    .btn.secondary {
+      background: linear-gradient(135deg, #21262d, #161b22);
+      color: var(--text-primary);
+      border-color: #30363d;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 8px 18px rgba(0,0,0,0.4);
+    }
+    .btn.secondary:hover {
+      background: linear-gradient(135deg, #262b33, #161b22);
+    }
+
+    .btn.danger {
+      background: linear-gradient(135deg, #b91c1c, #ef4444);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 8px 18px rgba(239,68,68,0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: default;
+      transform: none;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 0 rgba(0,0,0,0);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: #010409;
+      color: var(--text-primary);
+      font-size: 14px;
+      margin: 4px 0 10px;
+      outline: none;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent-soft);
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .small-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .muted { color: var(--text-muted); }
+
+    .grid-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .flex-row > * {
+      flex: 1;
+      min-width: 0;
+    }
+    .flex-row.right { justify-content: flex-end; }
+
+    .status {
+      font-size: 12px;
+      margin-top: 6px;
+      color: var(--text-muted);
+    }
+    .status.ok { color: #4ade80; }
+    .status.error { color: #f97373; }
+
+    .hidden { display: none !important; }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .pill {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #30363d;
+      background: #010409;
+      color: var(--text-muted);
+    }
+
+    .video-wrapper {
+      position: relative;
+      background: #010409;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 8px;
+      border: 1px solid #30363d;
+      width: 100%;
+      height: 240px;
+      max-height: 240px;
+    }
+
+    .video-wrapper video,
+    .video-wrapper canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .scan-overlay {
+      position: absolute;
+      inset: 12%;
+      border: 2px solid rgba(47, 129, 247, 0.85);
+      border-radius: 14px;
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.7);
+      pointer-events: none;
+    }
+
+    .scan-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid #21262d;
+      padding: 6px 4px;
+      text-align: left;
+    }
+    th {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    tr.stock-zero {
+      background: linear-gradient(to right, rgba(127, 29, 29, 0.38), transparent);
+    }
+    tr.stock-low {
+      background: linear-gradient(to right, rgba(180, 83, 9, 0.28), transparent);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #30363d;
+      background: #020617;
+    }
+    .chip-cat-syrup {
+      background: var(--cat-syrup);
+      border-color: var(--cat-syrup-border);
+      color: #f472b6;
+    }
+    .chip-cat-milk {
+      background: var(--cat-milk);
+      border-color: var(--cat-milk-border);
+      color: #38bdf8;
+    }
+    .chip-cat-topping {
+      background: var(--cat-topping);
+      border-color: var(--cat-topping-border);
+      color: #facc15;
+    }
+    .chip-cat-cup {
+      background: var(--cat-cup);
+      border-color: var(--cat-cup-border);
+      color: #4ade80;
+    }
+    .chip-cat-other {
+      background: var(--cat-other);
+      border-color: var(--cat-other-border);
+      color: #e5e7eb;
+    }
+
+    .muted-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .search-results {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: var(--bg-card-soft);
+      margin-top: 8px;
+    }
+
+    .search-result-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-item:hover {
+      background: rgba(47, 129, 247, 0.12);
+    }
+
+    .search-result-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .search-result-details {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .inventory-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .inventory-toolbar > * {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 40;
+      backdrop-filter: blur(6px);
+    }
+    .modal {
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      background: rgba(13,17,23,0.98);
+      border-radius: 16px;
+      border: 1px solid rgba(48,54,61,0.95);
+      box-shadow:
+        0 25px 60px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(255,255,255,0.03);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-content {
+      overflow-y: auto;
+      padding: 16px 18px 14px;
+      flex: 1;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LOGIN -->
+  <div id="loginCard" class="card">
+    <h1>Brewtopia Inventory</h1>
+    <p class="small-text">
+      Simple, color-coded inventory for the shop. Protected with a PIN so only staff can change counts.
+    </p>
+    <label for="pinInput">PIN</label>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
+    <button id="loginBtn" class="btn">Unlock</button>
+    <div id="loginStatus" class="status"></div>
+    <p class="small-text" style="margin-top:10px;">
+      Data is stored locally on this device and persists until you clear it. You can export or download a copy anytime.
+    </p>
+  </div>
+
+  <!-- MAIN -->
+  <div id="mainArea" class="hidden">
+    <div class="card">
+      <div class="flex-row" style="align-items:flex-start;">
+        <div style="flex: 2;">
+          <h2 style="margin-bottom:4px;">Brewtopia Inventory</h2>
+          <p class="small-text" id="summaryLine">
+            Track syrups, milks, toppings, cups and more — scan bottles as you receive and use them.
+          </p>
+        </div>
+        <div style="flex:1;text-align:right;">
+          <div class="small-text muted">Session</div>
+          <div class="small-text" id="sessionInfo">PIN OK</div>
+          <button id="lockBtn" class="btn secondary" style="margin-top:6px;padding:5px 11px;font-size:12px;">Lock</button>
+        </div>
+      </div>
+
+      <div class="grid-buttons">
+        <button class="btn" id="btnReceive">📦 Receive Stock</button>
+        <button class="btn secondary" id="btnUse">🥤 Use Item</button>
+        <button class="btn secondary" id="btnMove">🔄 Move Item</button>
+        <button class="btn secondary" id="btnInventory">📋 Inventory</button>
+        <button class="btn secondary" id="btnExport">🖨️ Export / Print</button>
+        <button class="btn secondary" id="btnExportHtml">💾 Download HTML</button>
+        <button class="btn secondary" id="btnImport">📥 Import HTML</button>
+        <button class="btn secondary" id="btnSheetsConfig">⚙️ Google Sheets</button>
+        <button class="btn secondary" id="btnPushToSheets">☁️ Push to Sheets</button>
+        <button class="btn secondary" id="btnPullFromSheets">📥 Pull from Sheets</button>
+      </div>
+
+      <!-- hidden file input for import -->
+      <input type="file" id="importFileInput" accept=".html,.htm,text/html" class="hidden">
+
+      <div class="pill-row">
+        <span class="pill">🟢 Above par</span>
+        <span class="pill">🟡 Below par</span>
+        <span class="pill">🔴 Out of stock</span>
+        <span class="pill">🎨 Pastel tags by category</span>
+      </div>
+
+      <div id="globalStatus" class="status"></div>
+    </div>
+
+    <!-- RECEIVE STOCK -->
+    <div id="receiveCard" class="card hidden">
+      <h3>Receive Stock (Bulk Scan)</h3>
+      <p class="small-text">
+        As new bottles/cases arrive, scan each once. Unknown barcodes will prompt you to describe the item.
+      </p>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:500;margin-bottom:4px;">Receiving Location</label>
+        <select id="receiveLocationSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-card);color:var(--text-primary);font-size:14px;">
+          <option value="Coffee Shop">Coffee Shop</option>
+          <option value="Office Stock" selected>Office Stock</option>
+          <option value="Camper Caboose">Camper Caboose</option>
+        </select>
+        <p class="small-text" style="margin-top:4px;color:var(--text-muted);">
+          New items will be assigned to this location
+        </p>
+      </div>
+
+      <div class="flex-row">
+        <button class="btn" id="startReceiveScanBtn">Camera Scan</button>
+        <button class="btn secondary" id="stopReceiveScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="toggleReceiveTorchBtn" disabled>Flash</button>
+      </div>
+      <div id="receiveVideoWrapper" class="video-wrapper hidden">
+        <!-- Quagga injects video/canvas here -->
+        <div class="scan-overlay"></div>
+      </div>
+
+      <div class="scan-hint">
+        No camera? Use a handheld barcode scanner or type UPC:
+      </div>
+      <div class="flex-row">
+        <input id="receiveManualUpc" type="text" placeholder="Scan or type UPC" />
+        <button class="btn secondary" id="receiveClearBtn" style="flex:0 0 auto;padding:9px 12px;">✕</button>
+        <button class="btn secondary" id="receiveManualBtn">Add</button>
+      </div>
+
+      <div class="scan-hint" style="margin-top:16px;">
+        Or search existing items by name to add manually:
+      </div>
+      <div class="flex-row">
+        <input id="receiveSearchInput" type="text" placeholder="Search by item name, brand, or category" />
+        <button class="btn secondary" id="receiveSearchClearBtn" style="flex:0 0 auto;padding:9px 12px;">✕</button>
+      </div>
+      <div id="receiveSearchResults" class="search-results hidden"></div>
+
+      <div class="card-soft" style="margin-top:10px;">
+        <div class="muted-label">Scanned this session</div>
+        <div id="receiveList" class="small-text">No items scanned yet.</div>
+        <button class="btn" id="receiveApplyBtn" style="margin-top:10px;" disabled>Apply to Inventory</button>
+        <div id="receiveStatus" class="status"></div>
+      </div>
+    </div>
+
+    <!-- USE ITEM -->
+    <div id="useCard" class="card hidden">
+      <h3>Use Item (Scan Out)</h3>
+      <p class="small-text">
+        When you finish a bottle or container, scan it before tossing. Each scan subtracts 1 from inventory.
+      </p>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:500;margin-bottom:4px;">Using From Location</label>
+        <select id="useLocationSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-card);color:var(--text-primary);font-size:14px;">
+          <option value="">All Locations</option>
+          <option value="Coffee Shop">Coffee Shop</option>
+          <option value="Office Stock">Office Stock</option>
+          <option value="Camper Caboose">Camper Caboose</option>
+        </select>
+        <p class="small-text" style="margin-top:4px;color:var(--text-muted);">
+          Select location to use items from (or leave as "All Locations")
+        </p>
+      </div>
+
+      <div class="flex-row">
+        <button class="btn" id="startUseScanBtn">Camera Scan</button>
+        <button class="btn secondary" id="stopUseScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="toggleUseTorchBtn" disabled>Flash</button>
+      </div>
+      <div id="useVideoWrapper" class="video-wrapper hidden">
+        <!-- Quagga injects video/canvas here -->
+        <div class="scan-overlay"></div>
+      </div>
+
+      <div class="scan-hint">
+        Or use a handheld scanner / type UPC:
+      </div>
+      <div class="flex-row">
+        <input id="useManualUpc" type="text" placeholder="Scan or type UPC" />
+        <button class="btn secondary" id="useClearBtn" style="flex:0 0 auto;padding:9px 12px;">✕</button>
+        <button class="btn secondary" id="useManualBtn">Use 1</button>
+      </div>
+
+      <div id="useStatus" class="status"></div>
+    </div>
+
+    <!-- MOVE ITEM -->
+    <div id="moveCard" class="card hidden">
+      <h3>Move Item Between Locations</h3>
+      <p class="small-text">
+        Transfer items between stock rooms. Scan an item or enter UPC, select destination, and specify quantity to move.
+      </p>
+
+      <div class="flex-row">
+        <button class="btn" id="startMoveScanBtn">🎥 Camera Scan</button>
+        <button class="btn secondary" id="stopMoveScanBtn" disabled>Stop</button>
+        <button class="btn secondary" id="toggleMoveTorchBtn" disabled>Flash</button>
+      </div>
+      <div id="moveVideoWrapper" class="video-wrapper hidden">
+        <!-- Quagga injects video/canvas here -->
+        <div class="scan-overlay"></div>
+      </div>
+
+      <div class="scan-hint">
+        Or use a handheld scanner / type UPC:
+      </div>
+      <div class="flex-row">
+        <input id="moveManualUpc" type="text" placeholder="Scan or type UPC" />
+        <button class="btn secondary" id="moveClearBtn" style="flex:0 0 auto;padding:9px 12px;">✕</button>
+        <button class="btn secondary" id="moveLookupBtn">Lookup</button>
+      </div>
+
+      <div id="moveItemInfo" class="card-soft hidden" style="margin-top:10px;">
+        <div class="muted-label">Item to Move</div>
+        <div id="moveItemName" class="small-text" style="font-weight:600;margin:4px 0;"></div>
+        <div id="moveItemLocation" class="small-text" style="margin:4px 0;"></div>
+        
+        <div class="flex-row" style="margin-top:10px;">
+          <div>
+            <label>Move to Location</label>
+            <select id="moveToLocation" style="margin-top:4px;">
+              <option value="">-- Select Destination --</option>
+              <option value="Coffee Shop">Coffee Shop</option>
+              <option value="Office Stock">Office Stock</option>
+              <option value="Camper Caboose">Camper Caboose</option>
+            </select>
+          </div>
+          <div>
+            <label>Quantity to Move</label>
+            <input id="moveQuantity" type="number" min="1" placeholder="Qty" style="margin-top:4px;" />
+          </div>
+        </div>
+
+        <button class="btn" id="moveExecuteBtn" style="margin-top:10px;width:100%;">Transfer Item</button>
+      </div>
+
+      <div id="moveStatus" class="status"></div>
+    </div>
+
+    <!-- INVENTORY LIST -->
+    <div id="inventoryCard" class="card hidden">
+      <h3>Inventory Levels</h3>
+      <div class="inventory-toolbar">
+        <input id="invSearch" type="text" placeholder="Search by name, brand, category, location, or UPC" />
+        <select id="locationFilter" style="margin-left:8px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-card);color:var(--text-primary);">
+          <option value="">All Locations</option>
+          <option value="Coffee Shop">Coffee Shop</option>
+          <option value="Office Stock">Office Stock</option>
+          <option value="Camper Caboose">Camper Caboose</option>
+        </select>
+      </div>
+
+      <div id="inventoryTableWrapper" style="margin-top:8px;max-height:360px;overflow:auto;border-radius:12px;border:1px solid #21262d;">
+        <table>
+          <thead>
+          <tr>
+            <th>Item</th>
+            <th>Brand</th>
+            <th>Location</th>
+            <th>UPC</th>
+            <th>Cat.</th>
+            <th>Qty</th>
+            <th>Par</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody id="inventoryBody">
+          <tr><td colspan="9" class="small-text">No inventory yet. Start by scanning items in “Receive Stock”.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="inventoryStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW / EDIT ITEM -->
+  <div id="itemModalBackdrop" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header" style="padding:16px 18px 6px;">
+        <div>
+          <div class="muted-label" id="modalModeLabel">New Item</div>
+          <h3 id="modalTitle">Describe Item</h3>
+        </div>
+        <button id="modalCloseBtn" class="btn secondary" style="padding:4px 10px;font-size:11px;">✕</button>
+      </div>
+      <div class="modal-content">
+      <div class="small-text" id="modalSubtitle"></div>
+
+      <label>UPC</label>
+      <input id="modalUpc" type="text" readonly />
+
+      <label>Item name</label>
+      <input id="modalName" type="text" placeholder="e.g. Vanilla Syrup" />
+
+      <label>Type</label>
+      <select id="modalType">
+        <option value="unit">Unit (Single Item)</option>
+        <option value="case">Case (Bundle of Units)</option>
+      </select>
+
+      <div id="caseFieldsWrapper" class="hidden" style="background:rgba(47,129,247,0.08);padding:12px;border-radius:8px;margin:8px 0;border:1px solid rgba(47,129,247,0.3);">
+        <div class="small-text" style="color:#38bdf8;margin-bottom:8px;">📦 Case Configuration</div>
+        
+        <label>Unit UPC (that this case contains)</label>
+        <input id="modalUnitUpc" type="text" placeholder="e.g. 123456789012" />
+        
+        <label>Units Per Case</label>
+        <input id="modalUnitsPerCase" type="number" min="1" placeholder="e.g. 12" />
+        
+        <p class="small-text" style="margin-top:4px;color:var(--text-muted);">
+          When this case UPC is scanned, it will add the specified number of units to the unit UPC's inventory.
+        </p>
+      </div>
+
+      <label>Category</label>
+      <select id="modalCategory">
+        <option value="Syrup">Syrup</option>
+        <option value="Milk">Milk</option>
+        <option value="Topping">Topping</option>
+        <option value="Cup">Cup</option>
+        <option value="Other">Other</option>
+      </select>
+      
+      <div id="customCategoryWrapper" style="display:none; margin-top:8px;">
+        <label>New Category Name</label>
+        <input id="modalCustomCategory" type="text" placeholder="Enter new category name" />
+      </div>
+
+      <label>Location</label>
+      <select id="modalLocation">
+        <option value="Coffee Shop">Coffee Shop</option>
+        <option value="Office Stock">Office Stock</option>
+        <option value="Camper Caboose">Camper Caboose</option>
+      </select>
+
+      <label>Brand</label>
+      <input id="modalBrand" type="text" placeholder="e.g. Torani, Monin, etc." />
+
+      <label>Size</label>
+      <input id="modalSize" type="text" placeholder="e.g. 750ml, gallon, 12oz" />
+
+      <label>Unit</label>
+      <input id="modalUnit" type="text" placeholder="e.g. bottle, jug, bag, case" />
+
+      <div class="flex-row">
+        <div>
+          <label>Par level (target qty)</label>
+          <input id="modalPar" type="number" min="0" placeholder="e.g. 6" />
+        </div>
+        <div id="qtyFieldWrapper">
+          <label>Quantity</label>
+          <input id="modalQty" type="number" min="0" placeholder="e.g. 1" />
+          <p class="small-text" style="margin-top:2px;color:var(--text-muted);" id="qtyFieldHint">
+            Initial quantity for this item
+          </p>
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div>
+          <label>Reorder threshold</label>
+          <input id="modalReorder" type="number" min="0" placeholder="Alert at qty" />
+        </div>
+        <div>
+          <label>Cost per unit ($)</label>
+          <input id="modalCost" type="number" min="0" step="0.01" placeholder="e.g. 12.99" />
+        </div>
+      </div>
+
+      <label>Supplier / Vendor</label>
+      <input id="modalSupplier" type="text" placeholder="e.g. Restaurant Depot, Sysco" />
+
+      <label>Serving size</label>
+      <input id="modalServing" type="text" placeholder="e.g. 2 tbsp, 1 oz pump" />
+
+      <div style="margin-top:12px;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input id="modalSugarFree" type="checkbox" />
+          <span>Sugar Free</span>
+        </label>
+      </div>
+
+      <label>Notes</label>
+      <textarea id="modalNotes" rows="2" placeholder="Optional notes (flavor details, special handling, etc.)"></textarea>
+
+      <div id="modalStatus" class="status"></div>
+      </div>
+
+      <div class="modal-actions" style="padding:6px 18px 14px;border-top:1px solid rgba(48,54,61,0.5);">
+        <button id="modalDeleteBtn" class="btn danger hidden">Delete</button>
+        <div style="flex:1;"></div>
+        <button id="modalCancelBtn" class="btn secondary">Cancel</button>
+        <button id="modalSaveBtn" class="btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GOOGLE SHEETS CONFIG -->
+  <div id="sheetsModalBackdrop" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header" style="padding:16px 18px 6px;">
+        <div>
+          <div class="muted-label">Sync Configuration</div>
+          <h3>Google Sheets Setup</h3>
+        </div>
+        <button id="sheetsModalCloseBtn" class="btn secondary" style="padding:4px 10px;font-size:11px;">✕</button>
+      </div>
+      <div class="modal-content">
+        <p class="small-text">Configure Google Apps Script Web App URL to sync your inventory data.</p>
+        
+        <label>Apps Script Web App URL</label>
+        <input id="sheetsScriptUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec" />
+        <p class="small-text" style="margin-top:4px;color:var(--text-muted);">
+          Deploy your Apps Script as a web app and paste the URL here. See README for setup instructions.
+        </p>
+
+        <div id="sheetsConfigStatus" class="status"></div>
+      </div>
+
+      <div class="modal-actions" style="padding:6px 18px 14px;border-top:1px solid rgba(48,54,61,0.5);">
+        <button id="sheetsClearBtn" class="btn danger">Clear Config</button>
+        <div style="flex:1;"></div>
+        <button id="sheetsConfigCancelBtn" class="btn secondary">Cancel</button>
+        <button id="sheetsConfigSaveBtn" class="btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<audio id="beepSound">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YRAAAAAA" type="audio/wav">
+</audio>
+
+<script>
+  /***************
+   * CONFIG
+   ***************/
+  const PIN = "6251";
+  const STORAGE_KEY = "brewtopia_inventory_v1";
+  const SHEETS_CONFIG_KEY = "brewtopia_sheets_config";
+  
+  // Google Sheets Configuration (stored in localStorage)
+  let sheetsConfig = {
+    scriptUrl: ""
+  };
+
+  /***************
+   * STATE
+   ***************/
+  let inventory = {};        // upc -> item
+  let receiveScans = {};     // upc -> count (current session)
+  let modalMode = "create";  // or "edit"
+  let modalUpcCurrent = null;
+  let currentMoveUpc = null; // UPC of item being moved
+
+  // Quagga state
+  let currentScanMode = null; // "receive" | "use" | "move" | null
+  let quaggaInitialized = false;
+
+  // Torch
+  let torchOn = false;
+
+  // Debounce
+  let lastScanCode = null;
+  let lastScanTime = 0;
+
+  // Audio for beep
+  let audioCtx = null;
+
+  /***************
+   * ELEMENTS
+   ***************/
+  const $ = (id) => document.getElementById(id);
+
+  const loginCard = $("loginCard");
+  const mainArea = $("mainArea");
+  const pinInput = $("pinInput");
+  const loginBtn = $("loginBtn");
+  const loginStatus = $("loginStatus");
+  const lockBtn = $("lockBtn");
+  const globalStatus = $("globalStatus");
+  const sessionInfo = $("sessionInfo");
+  const summaryLine = $("summaryLine");
+
+  const btnReceive = $("btnReceive");
+  const btnUse = $("btnUse");
+  const btnMove = $("btnMove");
+  const btnInventory = $("btnInventory");
+  const btnExport = $("btnExport");
+  const btnExportHtml = $("btnExportHtml");
+  const btnImport = $("btnImport");
+  const btnSheetsConfig = $("btnSheetsConfig");
+  const btnPushToSheets = $("btnPushToSheets");
+  const btnPullFromSheets = $("btnPullFromSheets");
+  const importFileInput = $("importFileInput");
+
+  const receiveCard = $("receiveCard");
+  const useCard = $("useCard");
+  const moveCard = $("moveCard");
+  const inventoryCard = $("inventoryCard");
+
+  const receiveLocationSelect = $("receiveLocationSelect");
+  const startReceiveScanBtn = $("startReceiveScanBtn");
+  const stopReceiveScanBtn = $("stopReceiveScanBtn");
+  const toggleReceiveTorchBtn = $("toggleReceiveTorchBtn");
+  const receiveVideoWrapper = $("receiveVideoWrapper");
+  const receiveManualUpc = $("receiveManualUpc");
+  const receiveManualBtn = $("receiveManualBtn");
+  const receiveList = $("receiveList");
+  const receiveApplyBtn = $("receiveApplyBtn");
+  const receiveStatus = $("receiveStatus");
+  const receiveSearchInput = $("receiveSearchInput");
+  const receiveSearchResults = $("receiveSearchResults");
+  const receiveSearchClearBtn = $("receiveSearchClearBtn");
+
+  const useLocationSelect = $("useLocationSelect");
+  const startUseScanBtn = $("startUseScanBtn");
+  const stopUseScanBtn = $("stopUseScanBtn");
+  const toggleUseTorchBtn = $("toggleUseTorchBtn");
+  const useVideoWrapper = $("useVideoWrapper");
+  const useManualUpc = $("useManualUpc");
+  const useManualBtn = $("useManualBtn");
+  const useStatus = $("useStatus");
+
+  const startMoveScanBtn = $("startMoveScanBtn");
+  const stopMoveScanBtn = $("stopMoveScanBtn");
+  const toggleMoveTorchBtn = $("toggleMoveTorchBtn");
+  const moveVideoWrapper = $("moveVideoWrapper");
+  const moveManualUpc = $("moveManualUpc");
+  const moveLookupBtn = $("moveLookupBtn");
+  const moveItemInfo = $("moveItemInfo");
+  const moveItemName = $("moveItemName");
+  const moveItemLocation = $("moveItemLocation");
+  const moveToLocation = $("moveToLocation");
+  const moveQuantity = $("moveQuantity");
+  const moveExecuteBtn = $("moveExecuteBtn");
+  const moveStatus = $("moveStatus");
+
+  const invSearch = $("invSearch");
+  const locationFilter = $("locationFilter");
+  const inventoryBody = $("inventoryBody");
+  const inventoryStatus = $("inventoryStatus");
+
+  const itemModalBackdrop = $("itemModalBackdrop");
+  const modalModeLabel = $("modalModeLabel");
+  const modalTitle = $("modalTitle");
+  const modalSubtitle = $("modalSubtitle");
+  const modalUpc = $("modalUpc");
+  const modalName = $("modalName");
+  const modalType = $("modalType");
+  const modalUnitUpc = $("modalUnitUpc");
+  const modalUnitsPerCase = $("modalUnitsPerCase");
+  const modalCategory = $("modalCategory");
+  const customCategoryWrapper = $("customCategoryWrapper");
+  const modalCustomCategory = $("modalCustomCategory");
+  const modalLocation = $("modalLocation");
+  const modalBrand = $("modalBrand");
+  const modalSize = $("modalSize");
+  const modalUnit = $("modalUnit");
+  const modalPar = $("modalPar");
+  const modalQty = $("modalQty");
+  const modalReorder = $("modalReorder");
+  const modalCost = $("modalCost");
+  const modalSupplier = $("modalSupplier");
+  const modalServing = $("modalServing");
+  const modalSugarFree = $("modalSugarFree");
+  const modalNotes = $("modalNotes");
+  const modalSaveBtn = $("modalSaveBtn");
+  const modalCancelBtn = $("modalCancelBtn");
+  const modalCloseBtn = $("modalCloseBtn");
+  const modalDeleteBtn = $("modalDeleteBtn");
+  const modalStatus = $("modalStatus");
+
+  const sheetsModalBackdrop = $("sheetsModalBackdrop");
+  const sheetsScriptUrl = $("sheetsScriptUrl");
+  const sheetsConfigSaveBtn = $("sheetsConfigSaveBtn");
+  const sheetsConfigCancelBtn = $("sheetsConfigCancelBtn");
+  const sheetsModalCloseBtn = $("sheetsModalCloseBtn");
+  const sheetsClearBtn = $("sheetsClearBtn");
+  const sheetsConfigStatus = $("sheetsConfigStatus");
+
+  /***************
+   * UTIL
+   ***************/
+  function setStatus(el, msg, type) {
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.remove("ok", "error");
+    if (type) el.classList.add(type);
+  }
+
+  function isCaseUpc(upc) {
+    const item = inventory[upc];
+    return item && item.type === "case";
+  }
+
+  function isUnitUpc(upc) {
+    const item = inventory[upc];
+    return item && item.type === "unit";
+  }
+
+  function getCaseInfo(upc) {
+    const item = inventory[upc];
+    if (!item || item.type !== "case") return null;
+    return {
+      unitUpc: item.unitUpc,
+      unitsPerCase: item.unitsPerCase || 1,
+      name: item.name
+    };
+  }
+
+  function loadInventoryFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        inventory = {};
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      inventory = parsed.items || {};
+    } catch (e) {
+      console.error("Failed to load inventory", e);
+      inventory = {};
+    }
+  }
+
+  function saveInventoryToStorage() {
+    const payload = { items: inventory };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  function inventoryArray() {
+    return Object.values(inventory || {});
+  }
+
+  function getCategorySlug(cat) {
+    const c = (cat || "").toLowerCase();
+    if (c === "syrup") return "syrup";
+    if (c === "milk") return "milk";
+    if (c === "topping") return "topping";
+    if (c === "cup" || c === "cups") return "cup";
+    return "other";
+  }
+
+  function getCategoryChipClass(cat) {
+    const slug = getCategorySlug(cat);
+    return {
+      syrup: "chip chip-cat-syrup",
+      milk: "chip chip-cat-milk",
+      topping: "chip chip-cat-topping",
+      cup: "chip chip-cat-cup",
+      other: "chip chip-cat-other"
+    }[slug];
+  }
+
+  function updateSummaryLine() {
+    const rows = inventoryArray();
+    if (!rows.length) {
+      summaryLine.textContent = "No items tracked yet. Start in “Receive Stock” to scan bottles into inventory.";
+      return;
+    }
+    let total = 0;
+    let low = 0;
+    let zero = 0;
+    rows.forEach(item => {
+      const q = Number(item.qty || 0);
+      const par = Number(item.par || 0);
+      total += q;
+      if (q === 0) zero++;
+      else if (par > 0 && q < par) low++;
+    });
+    summaryLine.textContent =
+      `Tracking ${rows.length} items • ${total} units. ` +
+      `${low ? low + " low" : "No low stock"} • ${zero ? zero + " out" : "None out of stock"}.`;
+  }
+
+  function playBeep() {
+    try {
+      const snd = $("beepSound");
+      snd.currentTime = 0;
+      snd.play().catch(()=>{});
+    } catch (e) {
+      console.warn("Beep error:", e);
+    }
+  }
+
+  async function fetchProductInfo(upc) {
+    try {
+      const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${upc}.json`);
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      if (data.status !== 1 || !data.product) return null;
+      
+      const product = data.product;
+      
+      // Extract brand - prioritize first brand if multiple
+      let brand = "";
+      if (product.brands) {
+        // Split by comma and take the first one, trim whitespace
+        const brands = product.brands.split(',');
+        brand = brands[0].trim();
+      }
+      
+      // Extract product name - try multiple fields
+      let name = product.product_name || product.product_name_en || 
+                 product.generic_name || product.generic_name_en || "";
+      
+      // Extract size/quantity - try multiple fields
+      let size = "";
+      if (product.quantity) {
+        size = product.quantity;
+      } else if (product.product_quantity && product.product_quantity_unit) {
+        size = `${product.product_quantity}${product.product_quantity_unit}`;
+      } else if (product.net_weight) {
+        size = product.net_weight;
+      }
+      
+      // Extract serving size
+      let serving = "";
+      if (product.serving_size) {
+        serving = product.serving_size;
+      } else if (product.serving_quantity && product.serving_quantity_unit) {
+        serving = `${product.serving_quantity} ${product.serving_quantity_unit}`;
+      }
+      
+      // Map Open Food Facts data to our fields
+      const info = {
+        name: name,
+        brand: brand,
+        size: size,
+        category: inferCategory(product),
+        serving: serving,
+        imageUrl: product.image_url || product.image_front_url || product.image_small_url || ""
+      };
+      
+      return info;
+    } catch (err) {
+      console.warn("Open Food Facts lookup failed:", err);
+      return null;
+    }
+  }
+
+  function inferCategory(product) {
+    // Try to map Open Food Facts categories to our categories
+    const categories = (product.categories || "").toLowerCase();
+    const tags = (product.categories_tags || []).join(" ").toLowerCase();
+    const combined = categories + " " + tags;
+    
+    if (combined.includes("syrup") || combined.includes("flavor")) return "Syrup";
+    if (combined.includes("milk") || combined.includes("cream") || combined.includes("dairy")) return "Milk";
+    if (combined.includes("topping") || combined.includes("sauce") || combined.includes("whipped")) return "Topping";
+    if (combined.includes("cup") || combined.includes("container") || combined.includes("lid")) return "Cup";
+    
+    // Check product name as fallback
+    const name = (product.product_name || "").toLowerCase();
+    if (name.includes("syrup") || name.includes("flavor")) return "Syrup";
+    if (name.includes("milk") || name.includes("cream")) return "Milk";
+    if (name.includes("topping") || name.includes("sauce") || name.includes("whip")) return "Topping";
+    
+    return "Other";
+  }
+
+  /***************
+   * GOOGLE SHEETS SYNC
+   ***************/
+  function loadSheetsConfig() {
+    try {
+      const raw = localStorage.getItem(SHEETS_CONFIG_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        sheetsConfig = { ...sheetsConfig, ...parsed };
+      }
+    } catch (e) {
+      console.error("Failed to load Sheets config", e);
+    }
+  }
+
+  function saveSheetsConfig() {
+    localStorage.setItem(SHEETS_CONFIG_KEY, JSON.stringify(sheetsConfig));
+  }
+
+  function isSheetsConfigured() {
+    return sheetsConfig.scriptUrl && sheetsConfig.scriptUrl.trim().length > 0;
+  }
+
+  async function pushToGoogleSheets() {
+    if (!isSheetsConfigured()) {
+      alert("Please configure Google Sheets first.");
+      return;
+    }
+
+    try {
+      setStatus(globalStatus, "Pushing to Google Sheets...", null);
+      
+      // Convert inventory to array of objects
+      const data = Object.values(inventory).map(item => ({
+        category: item.category || "",
+        name: item.name || "",
+        type: item.type || "unit",
+        unitUpc: item.unitUpc || "",
+        unitsPerCase: item.unitsPerCase || "",
+        brand: item.brand || "",
+        location: item.location || "Office Stock",
+        upc: item.upc || "",
+        size: item.size || "",
+        unit: item.unit || "",
+        qty: item.qty || 0,
+        par: item.par || 0,
+        reorder: item.reorder || "",
+        cost: item.cost || "",
+        supplier: item.supplier || "",
+        serving: item.serving || "",
+        notes: item.notes || ""
+      }));
+
+      const response = await fetch(sheetsConfig.scriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "push",
+          data: data
+        })
+      });
+
+      // Note: no-cors mode doesn't allow reading response, so we assume success
+      setStatus(globalStatus, `✅ Pushed ${Object.keys(inventory).length} items to Google Sheets`, "ok");
+      setTimeout(() => setStatus(globalStatus, "", null), 3000);
+    } catch (err) {
+      console.error("Push to Sheets error:", err);
+      setStatus(globalStatus, `❌ Error: ${err.message}`, "error");
+    }
+  }
+
+  async function pullFromGoogleSheets() {
+    if (!isSheetsConfigured()) {
+      alert("Please configure Google Sheets first.");
+      return;
+    }
+
+    const confirmed = confirm("Pull from Google Sheets? This will replace your local inventory with data from the sheet.");
+    if (!confirmed) return;
+
+    try {
+      setStatus(globalStatus, "Pulling from Google Sheets...", null);
+      
+      const response = await fetch(sheetsConfig.scriptUrl + "?action=pull");
+      
+      if (!response.ok) {
+        throw new Error("Failed to pull from Google Sheets");
+      }
+
+      const result = await response.json();
+      
+      if (!result.data || result.data.length === 0) {
+        setStatus(globalStatus, "No data found in Google Sheets", "error");
+        return;
+      }
+
+      // Convert array of objects to inventory object
+      const newInventory = {};
+      result.data.forEach(item => {
+        if (!item.upc) return; // Skip if no UPC
+        
+        newInventory[item.upc] = {
+          upc: item.upc,
+          category: item.category || "Other",
+          name: item.name || "",
+          type: item.type || "unit",
+          unitUpc: item.unitUpc || "",
+          unitsPerCase: item.unitsPerCase ? parseInt(item.unitsPerCase) : undefined,
+          brand: item.brand || "",
+          location: item.location || "Office Stock",
+          size: item.size || "",
+          unit: item.unit || "",
+          qty: parseInt(item.qty) || 0,
+          par: parseInt(item.par) || 0,
+          reorder: item.reorder || "",
+          cost: item.cost || "",
+          supplier: item.supplier || "",
+          serving: item.serving || "",
+          notes: item.notes || ""
+        };
+      });
+
+      inventory = newInventory;
+      saveInventoryToStorage();
+      renderInventoryTable();
+      updateSummaryLine();
+      
+      setStatus(globalStatus, `✅ Pulled ${Object.keys(inventory).length} items from Google Sheets`, "ok");
+      setTimeout(() => setStatus(globalStatus, "", null), 3000);
+    } catch (err) {
+      console.error("Pull from Sheets error:", err);
+      setStatus(globalStatus, `❌ Error: ${err.message}`, "error");
+    }
+  }
+
+  function isValidUPC(code) {
+    if (!/^[0-9]{12}$/.test(code)) return false;
+    let sum = 0;
+    for (let i = 0; i < 11; i++) {
+      const n = parseInt(code[i], 10);
+      sum += (i % 2 === 0) ? n * 3 : n;
+    }
+    const check = (10 - (sum % 10)) % 10;
+    return check === parseInt(code[11], 10);
+  }
+
+  /***************
+   * LOGIN
+   ***************/
+  loginBtn.addEventListener("click", () => {
+    const pin = pinInput.value.trim();
+    if (!pin) {
+      setStatus(loginStatus, "Enter PIN to unlock.", "error");
+      return;
+    }
+    if (pin !== PIN) {
+      setStatus(loginStatus, "Incorrect PIN.", "error");
+      return;
+    }
+    localStorage.setItem("brewtopia_pin_ok", "1");
+    enterMain();
+  });
+
+  function enterMain() {
+    loginCard.classList.add("hidden");
+    mainArea.classList.remove("hidden");
+    sessionInfo.textContent = "Unlocked • Local inventory";
+    setStatus(globalStatus, "Inventory is stored locally on this device. Export or download HTML anytime.", "ok");
+    loadInventoryFromStorage();
+    loadSheetsConfig();
+    renderInventoryTable();
+    updateSummaryLine();
+  }
+
+  lockBtn.addEventListener("click", () => {
+    stopScanner();
+    mainArea.classList.add("hidden");
+    loginCard.classList.remove("hidden");
+    setStatus(loginStatus, "Locked. Enter PIN again.", null);
+  });
+
+  // Auto-unlock if pin was verified previously
+  (function init() {
+    if (localStorage.getItem("brewtopia_pin_ok") === "1") {
+      enterMain();
+    }
+    
+    // Debug: Check if search elements exist
+    console.log("=== Search Elements Check ===");
+    console.log("receiveSearchInput:", receiveSearchInput);
+    console.log("receiveSearchResults:", receiveSearchResults);
+    console.log("receiveSearchClearBtn:", receiveSearchClearBtn);
+  })();
+
+  /***************
+   * NAV
+   ***************/
+  btnReceive.addEventListener("click", () => showSection("receive"));
+  btnUse.addEventListener("click", () => showSection("use"));
+  btnMove.addEventListener("click", () => showSection("move"));
+  btnInventory.addEventListener("click", () => showSection("inventory"));
+
+  function showSection(name) {
+    receiveCard.classList.add("hidden");
+    useCard.classList.add("hidden");
+    moveCard.classList.add("hidden");
+    inventoryCard.classList.add("hidden");
+
+    stopScanner();
+
+    if (name === "receive") receiveCard.classList.remove("hidden");
+    if (name === "use") useCard.classList.remove("hidden");
+    if (name === "move") moveCard.classList.remove("hidden");
+    if (name === "inventory") inventoryCard.classList.remove("hidden");
+  }
+
+  /***************
+   * INVENTORY RENDER
+   ***************/
+  function renderInventoryTable() {
+    const rows = inventoryArray();
+    const search = invSearch.value.trim().toLowerCase();
+    const locationVal = locationFilter.value;
+
+    let filtered = rows.slice();
+
+    if (search) {
+      filtered = filtered.filter(item => {
+        const name = (item.name || "").toLowerCase();
+        const upc = String(item.upc || "").toLowerCase();
+        const brand = (item.brand || "").toLowerCase();
+        const category = (item.category || "").toLowerCase();
+        const location = (item.location || "").toLowerCase();
+        
+        return name.includes(search) ||
+               upc.includes(search) ||
+               brand.includes(search) ||
+               category.includes(search) ||
+               location.includes(search);
+      });
+    }
+
+    if (locationVal) {
+      filtered = filtered.filter(item => (item.location || "Office Stock") === locationVal);
+    }
+
+    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+    inventoryBody.innerHTML = "";
+
+    if (!filtered.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 8;
+      td.textContent = "No items match. Try scanning in Receive Stock.";
+      td.className = "small-text";
+      tr.appendChild(td);
+      inventoryBody.appendChild(tr);
+      inventoryStatus.textContent = "";
+      return;
+    }
+
+    let totalItems = 0;
+    let totalSkus = filtered.length;
+
+    filtered.forEach(item => {
+      const q = Number(item.qty || 0);
+      totalItems += q;
+    });
+
+    filtered.forEach(item => {
+      const tr = document.createElement("tr");
+      const q = Number(item.qty || 0);
+      const par = Number(item.par || 0);
+
+      if (q === 0) tr.classList.add("stock-zero");
+      else if (par > 0 && q < par) tr.classList.add("stock-low");
+
+      const tdName = document.createElement("td");
+      let nameHtml = `<strong>${item.name || "(unnamed item)"}</strong>`;
+      
+      // Add type indicator
+      if (item.type === "case") {
+        const unitItem = inventory[item.unitUpc];
+        const unitName = unitItem ? unitItem.name : "unknown";
+        nameHtml += ` <span style="font-size:10px;background:rgba(47,129,247,0.2);color:#38bdf8;padding:2px 6px;border-radius:4px;margin-left:4px;">📦 CASE (${item.unitsPerCase || 0}× ${unitName})</span>`;
+      }
+      
+      nameHtml += `<br><span class="small-text">${item.size || ""} ${item.unit || ""}</span>`;
+      tdName.innerHTML = nameHtml;
+
+      const tdBrand = document.createElement("td");
+      tdBrand.innerHTML = `<span class="small-text">${item.brand || "—"}</span>`;
+
+      const tdLocation = document.createElement("td");
+      tdLocation.innerHTML = `<span class="small-text">${item.location || "Office Stock"}</span>`;
+
+      const tdUpc = document.createElement("td");
+      tdUpc.innerHTML = `<span class="small-text">${item.upc || ""}</span>`;
+
+      const tdCat = document.createElement("td");
+      const chipClass = getCategoryChipClass(item.category);
+      const catLabel = item.category || "Other";
+      tdCat.innerHTML = `<span class="${chipClass}">${catLabel}</span>`;
+
+      const tdQty = document.createElement("td");
+      // Cases don't store their own quantity
+      if (item.type === "case") {
+        tdQty.innerHTML = `<span class="small-text" style="color:var(--text-muted);">—</span>`;
+        tdQty.title = "Cases don't have their own inventory. They add to unit UPCs.";
+      } else {
+        tdQty.textContent = q;
+        tdQty.style.fontWeight = "600";
+      }
+
+      const tdPar = document.createElement("td");
+      tdPar.textContent = par || "—";
+
+      const tdCost = document.createElement("td");
+      tdCost.innerHTML = item.cost ? `<span class="small-text">$${Number(item.cost).toFixed(2)}</span>` : `<span class="small-text">—</span>`;
+
+      const tdSupplier = document.createElement("td");
+      tdSupplier.innerHTML = `<span class="small-text">${item.supplier || "—"}</span>`;
+
+      const tdEdit = document.createElement("td");
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Edit";
+      editBtn.className = "btn secondary";
+      editBtn.style.padding = "4px 10px";
+      editBtn.style.fontSize = "11px";
+      editBtn.addEventListener("click", () => openEditItem(item.upc));
+      tdEdit.appendChild(editBtn);
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdBrand);
+      tr.appendChild(tdLocation);
+      tr.appendChild(tdUpc);
+      tr.appendChild(tdCat);
+      tr.appendChild(tdQty);
+      tr.appendChild(tdPar);
+      tr.appendChild(tdEdit);
+      inventoryBody.appendChild(tr);
+    });
+
+    inventoryStatus.textContent = `${totalSkus} items • ${totalItems} units total`;
+  }
+
+  invSearch.addEventListener("input", renderInventoryTable);
+  locationFilter.addEventListener("change", renderInventoryTable);
+
+  /***************
+   * RECEIVE STOCK
+   ***************/
+  function addReceiveScan(upc) {
+    if (!upc) return;
+    upc = upc.trim();
+    if (!upc) return;
+
+    const existing = inventory[upc];
+    if (!existing) {
+      openNewItem(upc, 1);
+      return;
+    }
+
+    // Check if this is a case UPC
+    if (existing.type === "case") {
+      const unitUpc = existing.unitUpc;
+      const unitsPerCase = existing.unitsPerCase || 1;
+      
+      // Check if unit UPC exists
+      if (!inventory[unitUpc]) {
+        setStatus(receiveStatus, `⚠️ Unit UPC ${unitUpc} not found. Please create it first.`, "error");
+        return;
+      }
+
+      // Add to unit UPC's receive scans
+      if (!receiveScans[unitUpc]) {
+        receiveScans[unitUpc] = 0;
+      }
+      receiveScans[unitUpc] += unitsPerCase;
+      
+      setStatus(receiveStatus, `📦 Case scanned: +${unitsPerCase} ${inventory[unitUpc].name}`, "ok");
+      renderReceiveList();
+      return;
+    }
+
+    // Regular unit scan
+    if (!receiveScans[upc]) {
+      receiveScans[upc] = 0;
+    }
+    receiveScans[upc]++;
+    renderReceiveList();
+  }
+
+  function renderReceiveList() {
+    const keys = Object.keys(receiveScans);
+    if (!keys.length) {
+      receiveList.textContent = "No items scanned yet.";
+      receiveApplyBtn.disabled = true;
+      return;
+    }
+
+    const parts = keys.map(upc => {
+      const count = receiveScans[upc];
+      const item = inventory[upc];
+      const name = item ? item.name : "(unnamed item)";
+      return `<div>- <strong>${name}</strong> [${upc}] × ${count}</div>`;
+    });
+
+    receiveList.innerHTML = parts.join("");
+    receiveApplyBtn.disabled = false;
+  }
+
+  function searchInventoryItems(query) {
+    if (!query || query.trim().length < 1) {
+      return [];
+    }
+
+    const searchTerm = query.toLowerCase().trim();
+    const items = inventoryArray();
+    console.log("Searching in", items.length, "items for:", searchTerm);
+    
+    return items.filter(item => {
+      // Search in name, brand, category, and UPC
+      const name = (item.name || "").toLowerCase();
+      const brand = (item.brand || "").toLowerCase();
+      const category = (item.category || "").toLowerCase();
+      const upc = String(item.upc || "").toLowerCase();
+      const location = (item.location || "").toLowerCase();
+      
+      return name.includes(searchTerm) || 
+             brand.includes(searchTerm) || 
+             category.includes(searchTerm) ||
+             location.includes(searchTerm) ||
+             upc.includes(searchTerm);
+    }).slice(0, 20); // Limit to 20 results
+  }
+
+  function renderReceiveSearchResults(items) {
+    const resultsDiv = $("receiveSearchResults");
+    console.log("renderReceiveSearchResults called with items:", items);
+    console.log("resultsDiv element:", resultsDiv);
+    
+    if (!items || items.length === 0) {
+      console.log("No items found, showing empty message");
+      resultsDiv.innerHTML = '<div class="search-empty">No items found. Try a different search term.</div>';
+      resultsDiv.classList.remove("hidden");
+      return;
+    }
+
+    console.log("Rendering", items.length, "results");
+    const html = items.map(item => {
+      const categoryClass = `chip-cat-${(item.category || 'other').toLowerCase()}`;
+      return `
+        <div class="search-result-item" data-upc="${item.upc}">
+          <div class="search-result-name">${item.name || 'Unnamed Item'}</div>
+          <div class="search-result-details">
+            <span class="chip ${categoryClass}">${item.category || 'Other'}</span>
+            <span>${item.brand || ''}</span>
+            <span>${item.size || ''}</span>
+            <span>📍 ${item.location || 'Office Stock'}</span>
+            <span>Stock: ${item.qty || 0}</span>
+            <span class="small-text" style="color: var(--text-muted);">${item.upc}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    resultsDiv.innerHTML = html;
+    resultsDiv.classList.remove("hidden");
+    console.log("Results div updated, hidden class removed");
+
+    // Add click handlers to each result
+    resultsDiv.querySelectorAll(".search-result-item").forEach(el => {
+      el.addEventListener("click", () => {
+        const upc = el.getAttribute("data-upc");
+        addReceiveScan(upc);
+        $("receiveSearchInput").value = "";
+        resultsDiv.classList.add("hidden");
+        setStatus(receiveStatus, `✅ Added to receive list`, "ok");
+        setTimeout(() => setStatus(receiveStatus, "", null), 2000);
+      });
+    });
+  }
+
+  receiveManualBtn.addEventListener("click", () => {
+    const upc = receiveManualUpc.value;
+    addReceiveScan(upc);
+    receiveManualUpc.value = "";
+    receiveManualUpc.focus();
+  });
+
+  const receiveClearBtn = $("receiveClearBtn");
+  receiveClearBtn.addEventListener("click", () => {
+    receiveManualUpc.value = "";
+    receiveManualUpc.focus();
+  });
+
+  // Search as user types (with debounce)
+  let searchDebounceTimer = null;
+  
+  if (receiveSearchInput) {
+    receiveSearchInput.addEventListener("input", (e) => {
+      console.log("Search input event triggered, value:", e.target.value);
+      clearTimeout(searchDebounceTimer);
+      const query = e.target.value;
+      
+      if (!query || query.trim().length === 0) {
+        receiveSearchResults.classList.add("hidden");
+        return;
+      }
+
+      searchDebounceTimer = setTimeout(() => {
+        console.log("Searching for:", query);
+        const results = searchInventoryItems(query);
+        console.log("Search results:", results);
+        renderReceiveSearchResults(results);
+      }, 300);
+    });
+  }
+
+  // Clear search
+  if (receiveSearchClearBtn) {
+    receiveSearchClearBtn.addEventListener("click", () => {
+      receiveSearchInput.value = "";
+      receiveSearchResults.classList.add("hidden");
+      receiveSearchInput.focus();
+    });
+  }
+
+  // Handle Enter key in search
+  if (receiveSearchInput) {
+    receiveSearchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const results = searchInventoryItems(receiveSearchInput.value);
+        if (results && results.length > 0) {
+          // Auto-select first result on Enter
+          addReceiveScan(results[0].upc);
+          receiveSearchInput.value = "";
+          receiveSearchResults.classList.add("hidden");
+          setStatus(receiveStatus, `✅ Added to receive list`, "ok");
+          setTimeout(() => setStatus(receiveStatus, "", null), 2000);
+        }
+      }
+    });
+  }
+
+  receiveApplyBtn.addEventListener("click", () => {
+    const now = new Date();
+    Object.keys(receiveScans).forEach(upc => {
+      const count = receiveScans[upc];
+      const item = inventory[upc];
+      if (!item) return;
+      item.qty = Number(item.qty || 0) + count;
+      item.last_added = now.toISOString();
+    });
+    saveInventoryToStorage();
+    receiveScans = {};
+    renderReceiveList();
+    renderInventoryTable();
+    updateSummaryLine();
+    setStatus(receiveStatus, "Inventory updated.", "ok");
+  });
+
+  /***************
+   * USE ITEM
+   ***************/
+  function useOne(upc) {
+    if (!upc) return;
+    upc = upc.trim();
+    const item = inventory[upc];
+    if (!item) {
+      setStatus(useStatus, "UPC not found. Scan it in Receive Stock first.", "error");
+      return;
+    }
+
+    // Check location filter
+    const selectedLocation = useLocationSelect ? useLocationSelect.value : "";
+    if (selectedLocation && item.location !== selectedLocation) {
+      setStatus(useStatus, `⚠️ This item is at "${item.location}" but you selected "${selectedLocation}". Item not used.`, "error");
+      return;
+    }
+
+    // Check if this is a case UPC
+    if (item.type === "case") {
+      const unitUpc = item.unitUpc;
+      const unitsPerCase = item.unitsPerCase || 1;
+      
+      // Check if unit UPC exists
+      const unitItem = inventory[unitUpc];
+      if (!unitItem) {
+        setStatus(useStatus, `⚠️ Unit UPC ${unitUpc} not found.`, "error");
+        return;
+      }
+
+      // Check location filter for unit item
+      if (selectedLocation && unitItem.location !== selectedLocation) {
+        setStatus(useStatus, `⚠️ Unit item is at "${unitItem.location}" but you selected "${selectedLocation}". Item not used.`, "error");
+        return;
+      }
+
+      const before = Number(unitItem.qty || 0);
+      if (before < unitsPerCase) {
+        setStatus(useStatus, `⚠️ Insufficient stock. Need ${unitsPerCase} units but only ${before} available.`, "error");
+        return;
+      }
+
+      const after = before - unitsPerCase;
+      unitItem.qty = after;
+      unitItem.last_used = new Date().toISOString();
+      saveInventoryToStorage();
+      renderInventoryTable();
+      updateSummaryLine();
+
+      let msg = `📦 Used 1 case (${unitsPerCase} units) of ${unitItem.name}`;
+      if (selectedLocation) msg += ` from ${selectedLocation}`;
+      msg += ` — now ${after} units.`;
+      if (after === 0) msg += " ⚠ Out of stock.";
+      else if (unitItem.par && after < unitItem.par) msg += " ⚠ Below par.";
+      setStatus(useStatus, msg, after === 0 || (unitItem.par && after < unitItem.par) ? "error" : "ok");
+      return;
+    }
+
+    // Regular unit use
+    const before = Number(item.qty || 0);
+    const after = Math.max(0, before - 1);
+    item.qty = after;
+    item.last_used = new Date().toISOString();
+    saveInventoryToStorage();
+    renderInventoryTable();
+    updateSummaryLine();
+
+    let msg = `Used 1 of ${item.name || "(item)"}`;
+    if (selectedLocation) msg += ` from ${selectedLocation}`;
+    msg += ` — now ${after}.`;
+    if (after === 0) msg += " ⚠ Out of stock.";
+    else if (item.par && after < item.par) msg += " ⚠ Below par.";
+    setStatus(useStatus, msg, after === 0 || (item.par && after < item.par) ? "error" : "ok");
+  }
+
+  useManualBtn.addEventListener("click", () => {
+    const upc = useManualUpc.value;
+    useOne(upc);
+    useManualUpc.value = "";
+    useManualUpc.focus();
+  });
+
+  const useClearBtn = $("useClearBtn");
+  useClearBtn.addEventListener("click", () => {
+    useManualUpc.value = "";
+    useManualUpc.focus();
+  });
+
+  /***************
+   * QUAGGA SCANNER
+   ***************/
+  function isHighConfidence(result) {
+    if (!result.codeResult || !result.codeResult.decodedCodes) return false;
+    const codes = result.codeResult.decodedCodes.filter(c => typeof c.error === "number");
+    if (codes.length === 0) return true; // If no errors, accept it
+    const avgError = codes.reduce((acc, c) => acc + c.error, 0) / codes.length;
+    return avgError < 0.15; // More lenient threshold
+  }
+
+  async function startScanner(mode) {
+    console.log("Starting scanner in mode:", mode);
+    
+    if (currentScanMode) {
+      console.log("Scanner already active, stopping first");
+      stopScanner();
+      // Wait a bit for cleanup
+      setTimeout(() => startScanner(mode), 300);
+      return;
+    }
+    
+    currentScanMode = mode;
+    torchOn = false;
+
+    const wrapper = mode === "receive" ? receiveVideoWrapper : (mode === "use" ? useVideoWrapper : moveVideoWrapper);
+    const statusEl = mode === "receive" ? receiveStatus : (mode === "use" ? useStatus : moveStatus);
+    const startBtn = mode === "receive" ? startReceiveScanBtn : (mode === "use" ? startUseScanBtn : startMoveScanBtn);
+    const stopBtn = mode === "receive" ? stopReceiveScanBtn : (mode === "use" ? stopUseScanBtn : stopMoveScanBtn);
+    const torchBtn = mode === "receive" ? toggleReceiveTorchBtn : (mode === "use" ? toggleUseTorchBtn : toggleMoveTorchBtn);
+
+    console.log("Showing camera wrapper");
+    wrapper.classList.remove("hidden");
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    torchBtn.disabled = true;
+    torchBtn.textContent = "Flash";
+
+    setStatus(statusEl, "Requesting camera access…", null);
+
+    // Try to prompt for camera permission first
+    try {
+      console.log("Checking camera permissions...");
+      const testStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      console.log("Camera permission granted, stopping test stream");
+      testStream.getTracks().forEach(track => track.stop());
+    } catch (permErr) {
+      console.error("Camera permission error:", permErr);
+      let errorMsg = "Camera access denied. ";
+      if (permErr.name === "NotAllowedError" || permErr.name === "PermissionDeniedError") {
+        errorMsg += "Please check browser settings and allow camera access.";
+      } else if (permErr.name === "NotFoundError" || permErr.name === "DevicesNotFoundError") {
+        errorMsg += "No camera found on this device.";
+      } else if (permErr.name === "NotReadableError" || permErr.name === "TrackStartError") {
+        errorMsg += "Camera is in use by another app.";
+      } else if (permErr.name === "NotSupportedError" || permErr.name === "TypeError") {
+        errorMsg += "Camera not supported. Use HTTPS or localhost.";
+      } else {
+        errorMsg += `Error: ${permErr.name} - ${permErr.message}`;
+      }
+      setStatus(statusEl, errorMsg, "error");
+      wrapper.classList.add("hidden");
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      currentScanMode = null;
+      return;
+    }
+
+    const config = {
+      inputStream: {
+        type: "LiveStream",
+        constraints: {
+          facingMode: "environment",
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
+        },
+        target: wrapper,
+        area: { top: "15%", right: "15%", left: "15%", bottom: "15%" }
+      },
+      locator: {
+        patchSize: "medium",
+        halfSample: true
+      },
+      decoder: {
+        readers: [
+          "upc_reader",
+          "upc_e_reader",
+          "ean_reader",
+          "ean_8_reader",
+          "code_128_reader"
+        ],
+        multiple: false
+      },
+      locate: true,
+      numOfWorkers: navigator.hardwareConcurrency || 2,
+      frequency: 10
+    };
+
+    Quagga.init(config, function(err) {
+      // Check if mode changed during init
+      if (currentScanMode !== mode) {
+        console.log("Mode changed during init, aborting");
+        return;
+      }
+
+      if (err) {
+        console.error("Quagga init error:", err);
+        console.error("Error name:", err.name);
+        console.error("Error message:", err.message);
+        let errorMsg = "Camera initialization failed. ";
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          errorMsg += "Check browser settings for camera permission.";
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          errorMsg += "No camera device found.";
+        } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+          errorMsg += "Camera is in use by another application.";
+        } else if (err.name === "OverconstrainedError") {
+          errorMsg += "Camera doesn't meet minimum requirements.";
+        } else {
+          errorMsg += `${err.name || "Error"}: ${err.message || "Unknown error"}`;
+        }
+        setStatus(statusEl, errorMsg, "error");
+        
+        // Clean up UI
+        wrapper.classList.add("hidden");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        currentScanMode = null;
+        return;
+      }
+      
+      console.log("Quagga initialized successfully");
+      quaggaInitialized = true;
+      
+      try {
+        Quagga.start();
+        console.log("Quagga started successfully");
+        
+        setStatus(
+          statusEl,
+          mode === "receive"
+            ? "✅ Camera ready. Point at barcode to scan."
+            : "✅ Camera ready. Point at barcode to scan.",
+          "ok"
+        );
+
+        const track = Quagga.CameraAccess &&
+                      Quagga.CameraAccess.getActiveTrack &&
+                      Quagga.CameraAccess.getActiveTrack();
+        if (track && track.getCapabilities) {
+          const caps = track.getCapabilities();
+          if (caps && caps.torch) {
+            torchBtn.disabled = false;
+          }
+        }
+      } catch (startErr) {
+        console.error("Quagga start error:", startErr);
+        setStatus(statusEl, "Failed to start camera: " + startErr.message, "error");
+        quaggaInitialized = false;
+        wrapper.classList.add("hidden");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        currentScanMode = null;
+      }
+    });
+
+    Quagga.onDetected(onQuaggaDetected);
+  }
+
+  function onQuaggaDetected(result) {
+    if (!result || !result.codeResult || !result.codeResult.code) return;
+
+    // Log for debugging
+    console.log("Barcode detected:", result.codeResult.code, "Format:", result.codeResult.format);
+
+    if (!isHighConfidence(result)) {
+      console.log("Low confidence scan, skipping");
+      return;
+    }
+
+    let code = String(result.codeResult.code).trim();
+    if (!code) return;
+
+    // Remove leading 0 for UPC-A encoded as EAN-13
+    if (code.length === 13 && code.startsWith("0")) {
+      code = code.substring(1);
+    }
+
+    // Accept various barcode lengths
+    if (code.length === 12) {
+      if (!isValidUPC(code)) {
+        console.warn("Invalid UPC checksum:", code);
+        return;
+      }
+    } else if (code.length < 8 || code.length > 13) {
+      console.warn("Invalid barcode length:", code.length);
+      return;
+    }
+
+    const now = Date.now();
+    if (lastScanCode === code && now - lastScanTime < 750) {
+      return;
+    }
+    lastScanCode = code;
+    lastScanTime = now;
+
+    console.log("✅ Barcode accepted:", code);
+
+    if (navigator.vibrate) {
+      navigator.vibrate(80);
+    }
+    playBeep();
+
+    if (currentScanMode === "receive") {
+      addReceiveScan(code);
+    } else if (currentScanMode === "use") {
+      useOne(code);
+    } else if (currentScanMode === "move") {
+      lookupItemForMove(code);
+    }
+  }
+
+  function toggleTorch(mode) {
+    const statusEl = mode === "receive" ? receiveStatus : (mode === "use" ? useStatus : moveStatus);
+    const btn = mode === "receive" ? toggleReceiveTorchBtn : (mode === "use" ? toggleUseTorchBtn : toggleMoveTorchBtn);
+
+    const track = Quagga.CameraAccess &&
+                  Quagga.CameraAccess.getActiveTrack &&
+                  Quagga.CameraAccess.getActiveTrack();
+    if (!track) {
+      setStatus(statusEl, "Flash not available on this device.", "error");
+      return;
+    }
+
+    if (!track.getCapabilities || !track.applyConstraints) {
+      setStatus(statusEl, "Flash not supported by this browser.", "error");
+      return;
+    }
+
+    const caps = track.getCapabilities();
+    if (!caps || !caps.torch) {
+      setStatus(statusEl, "Flash/torch not supported on this camera.", "error");
+      return;
+    }
+
+    torchOn = !torchOn;
+    
+    // Try advanced constraints first, then fall back to basic
+    track.applyConstraints({ advanced: [{ torch: torchOn }] })
+      .catch(() => {
+        // Fallback: try without advanced array
+        return track.applyConstraints({ torch: torchOn });
+      })
+      .then(() => {
+        btn.textContent = torchOn ? "Flash On" : "Flash";
+        setStatus(statusEl, torchOn ? "✅ Flash on." : "Flash off.", "ok");
+      })
+      .catch(err => {
+        console.warn("Torch error:", err);
+        torchOn = !torchOn; // Revert on error
+        setStatus(statusEl, "⚠️ Flash error: " + (err.message || err), "error");
+      });
+  }
+
+  function stopScanner() {
+    if (!currentScanMode) return;
+
+    const mode = currentScanMode;
+    const wrapper = mode === "receive" ? receiveVideoWrapper : (mode === "use" ? useVideoWrapper : moveVideoWrapper);
+    const startBtn = mode === "receive" ? startReceiveScanBtn : (mode === "use" ? startUseScanBtn : startMoveScanBtn);
+    const stopBtn = mode === "receive" ? stopReceiveScanBtn : (mode === "use" ? stopUseScanBtn : stopMoveScanBtn);
+    const torchBtn = mode === "receive" ? toggleReceiveTorchBtn : (mode === "use" ? toggleUseTorchBtn : toggleMoveTorchBtn);
+    const statusEl = mode === "receive" ? receiveStatus : (mode === "use" ? useStatus : moveStatus);
+
+    console.log("Stopping scanner mode:", mode);
+
+    currentScanMode = null;
+    torchOn = false;
+
+    try {
+      if (quaggaInitialized) {
+        Quagga.offDetected(onQuaggaDetected);
+        Quagga.stop();
+        quaggaInitialized = false;
+        console.log("Quagga stopped successfully");
+      }
+    } catch (e) {
+      console.error("Error stopping Quagga:", e);
+      quaggaInitialized = false;
+    }
+
+    wrapper.classList.add("hidden");
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    torchBtn.disabled = true;
+    torchBtn.textContent = "Flash";
+    setStatus(statusEl, "", null);
+  }
+
+  startReceiveScanBtn.addEventListener("click", () => startScanner("receive"));
+  stopReceiveScanBtn.addEventListener("click", () => stopScanner());
+  startUseScanBtn.addEventListener("click", () => startScanner("use"));
+  stopUseScanBtn.addEventListener("click", () => stopScanner());
+  startMoveScanBtn.addEventListener("click", () => startScanner("move"));
+  stopMoveScanBtn.addEventListener("click", () => stopScanner());
+  toggleReceiveTorchBtn.addEventListener("click", () => toggleTorch("receive"));
+  toggleUseTorchBtn.addEventListener("click", () => toggleTorch("use"));
+  toggleMoveTorchBtn.addEventListener("click", () => toggleTorch("move"));
+
+  /***************
+   * MODAL: NEW / EDIT ITEM
+   ***************/
+  async function openNewItem(upc, initialQty) {
+    modalMode = "create";
+    modalUpcCurrent = upc;
+    modalModeLabel.textContent = "New Item";
+    modalTitle.textContent = "Describe this item";
+    modalSubtitle.textContent = "We’ve never seen this barcode before. Fill in the details once and we’ll remember it.";
+    modalUpc.value = upc;
+    modalName.value = "";
+    modalType.value = "unit";
+    modalUnitUpc.value = "";
+    modalUnitsPerCase.value = "";
+    modalCategory.value = "Syrup";
+    modalCustomCategory.value = "";
+    customCategoryWrapper.style.display = "none";
+    // Use the selected receive location if in receive mode
+    modalLocation.value = receiveLocationSelect ? receiveLocationSelect.value : "Office Stock";
+    modalBrand.value = "";
+    modalSize.value = "";
+    modalUnit.value = "bottle";
+    modalPar.value = "1";
+    modalQty.value = typeof initialQty === "number" ? String(initialQty) : "1";
+    modalReorder.value = "";
+    modalCost.value = "";
+    modalSupplier.value = "";
+    modalServing.value = "";
+    modalSugarFree.checked = false;
+    modalNotes.value = "";
+    setStatus(modalStatus, "", null);
+    modalDeleteBtn.classList.add("hidden");
+    $("caseFieldsWrapper").classList.add("hidden");
+    itemModalBackdrop.classList.remove("hidden");
+    
+    // Try to fetch product info from Open Food Facts
+    setStatus(modalStatus, "🔍 Looking up product information...", null);
+    const productInfo = await fetchProductInfo(upc);
+    
+    if (productInfo && productInfo.name) {
+      modalName.value = productInfo.name;
+      if (productInfo.brand) modalBrand.value = productInfo.brand;
+      if (productInfo.size) modalSize.value = productInfo.size;
+      if (productInfo.category) modalCategory.value = productInfo.category;
+      if (productInfo.serving) modalServing.value = productInfo.serving;
+      
+      setStatus(modalStatus, "✅ Product info found! Review and adjust as needed.", "ok");
+    } else {
+      setStatus(modalStatus, "ℹ️ Product not found in database. Please fill in manually.", null);
+    }
+  }
+
+  function openEditItem(upc) {
+    const item = inventory[upc];
+    if (!item) return;
+    modalMode = "edit";
+    modalUpcCurrent = upc;
+    modalModeLabel.textContent = "Edit Item";
+    modalTitle.textContent = item.name || "Edit item";
+    modalSubtitle.textContent = "Adjust name, category, par level or quantity as needed.";
+    modalUpc.value = upc;
+    modalName.value = item.name || "";
+    modalType.value = item.type || "unit";
+    modalUnitUpc.value = item.unitUpc || "";
+    modalUnitsPerCase.value = item.unitsPerCase || "";
+    
+    // Handle category - check if it's a custom category
+    const standardCategories = ["Syrup", "Milk", "Topping", "Cup", "Other"];
+    if (item.category && !standardCategories.includes(item.category)) {
+      modalCategory.value = "Other";
+      modalCustomCategory.value = item.category;
+      customCategoryWrapper.style.display = "block";
+    } else {
+      modalCategory.value = item.category || "Other";
+      modalCustomCategory.value = "";
+      customCategoryWrapper.style.display = "none";
+    }
+    
+    modalLocation.value = item.location || "Office Stock";
+    modalBrand.value = item.brand || "";
+    modalSize.value = item.size || "";
+    modalUnit.value = item.unit || "";
+    modalPar.value = item.par != null ? String(item.par) : "";
+    modalQty.value = item.qty != null ? String(item.qty) : "";
+    modalReorder.value = item.reorder != null ? String(item.reorder) : "";
+    modalCost.value = item.cost != null ? String(item.cost) : "";
+    modalSupplier.value = item.supplier || "";
+    modalServing.value = item.serving || "";
+    modalSugarFree.checked = item.sugarFree || false;
+    modalNotes.value = item.notes || "";
+    setStatus(modalStatus, "", null);
+    modalDeleteBtn.classList.remove("hidden");
+    
+    // Show/hide case fields
+    if (item.type === "case") {
+      $("caseFieldsWrapper").classList.remove("hidden");
+    } else {
+      $("caseFieldsWrapper").classList.add("hidden");
+    }
+    
+    itemModalBackdrop.classList.remove("hidden");
+  }
+
+  function closeItemModal() {
+    itemModalBackdrop.classList.add("hidden");
+  }
+
+  modalCancelBtn.addEventListener("click", closeItemModal);
+  modalCloseBtn.addEventListener("click", closeItemModal);
+
+  // Show/hide case fields when type changes
+  modalType.addEventListener("change", () => {
+    const qtyWrapper = $("qtyFieldWrapper");
+    const qtyHint = $("qtyFieldHint");
+    
+    if (modalType.value === "case") {
+      $("caseFieldsWrapper").classList.remove("hidden");
+      // Hide quantity field for cases
+      if (qtyWrapper) qtyWrapper.style.display = "none";
+    } else {
+      $("caseFieldsWrapper").classList.add("hidden");
+      // Show quantity field for units
+      if (qtyWrapper) qtyWrapper.style.display = "block";
+    }
+  });
+
+  // Show/hide custom category input when "Other" is selected
+  modalCategory.addEventListener("change", () => {
+    if (modalCategory.value === "Other") {
+      customCategoryWrapper.style.display = "block";
+    } else {
+      customCategoryWrapper.style.display = "none";
+      modalCustomCategory.value = "";
+    }
+  });
+
+  modalSaveBtn.addEventListener("click", () => {
+    const upc = (modalUpc.value || "").trim();
+    if (!upc) {
+      setStatus(modalStatus, "UPC missing.", "error");
+      return;
+    }
+    const name = modalName.value.trim();
+    const type = modalType.value;
+    const unitUpc = modalUnitUpc.value.trim();
+    const unitsPerCase = modalUnitsPerCase.value ? Number(modalUnitsPerCase.value) : 0;
+    let category = modalCategory.value;
+    
+    // Use custom category if "Other" is selected and a custom name is provided
+    if (category === "Other" && modalCustomCategory.value.trim()) {
+      category = modalCustomCategory.value.trim();
+    }
+    
+    const location = modalLocation.value;
+    const brand = modalBrand.value.trim();
+    const size = modalSize.value.trim();
+    const unit = modalUnit.value.trim() || "bottle";
+    const par = modalPar.value ? Number(modalPar.value) : 0;
+    const qty = modalQty.value ? Math.max(0, Number(modalQty.value)) : 0;
+    const reorder = modalReorder.value ? Number(modalReorder.value) : 0;
+    const cost = modalCost.value ? Number(modalCost.value) : 0;
+    const supplier = modalSupplier.value.trim();
+    const serving = modalServing.value.trim();
+    const sugarFree = modalSugarFree.checked;
+    const notes = modalNotes.value.trim();
+    const now = new Date().toISOString();
+
+    if (!name) {
+      setStatus(modalStatus, "Give this item a name.", "error");
+      return;
+    }
+
+    // Validate case-specific fields
+    if (type === "case") {
+      if (!unitUpc) {
+        setStatus(modalStatus, "Case UPC requires a unit UPC.", "error");
+        return;
+      }
+      if (!unitsPerCase || unitsPerCase < 1) {
+        setStatus(modalStatus, "Units per case must be at least 1.", "error");
+        return;
+      }
+      // Check if unit UPC exists or will be created
+      if (!inventory[unitUpc]) {
+        const confirmCreate = confirm(`Unit UPC ${unitUpc} doesn't exist yet. Create it now?`);
+        if (!confirmCreate) {
+          setStatus(modalStatus, "Cannot create case without a unit UPC.", "error");
+          return;
+        }
+        // Create minimal unit item
+        inventory[unitUpc] = {
+          upc: unitUpc,
+          name: name.replace(/\s*[-–—]\s*case$/i, "").trim() || name,
+          type: "unit",
+          category,
+          location,
+          brand,
+          size,
+          unit,
+          qty: 0,
+          par,
+          reorder,
+          cost: cost > 0 ? (cost / unitsPerCase) : 0,
+          supplier,
+          serving,
+          sugarFree,
+          notes: "Auto-created from case UPC",
+          last_added: now
+        };
+      }
+    }
+
+    if (modalMode === "create") {
+      inventory[upc] = {
+        upc,
+        name,
+        type: type || "unit",
+        unitUpc: type === "case" ? unitUpc : undefined,
+        unitsPerCase: type === "case" ? unitsPerCase : undefined,
+        category,
+        location,
+        brand,
+        size,
+        unit,
+        par,
+        qty: type === "case" ? 0 : qty, // Cases don't have their own qty
+        reorder,
+        cost,
+        supplier,
+        serving,
+        sugarFree,
+        notes,
+        last_added: now
+      };
+      if (!receiveScans[upc] && qty > 0 && type !== "case") {
+        receiveScans[upc] = qty;
+      }
+      setStatus(modalStatus, type === "case" ? "Case UPC created." : "Item created.", "ok");
+    } else {
+      const item = inventory[upc] || { upc };
+      item.name = name;
+      item.type = type || "unit";
+      item.unitUpc = type === "case" ? unitUpc : undefined;
+      item.unitsPerCase = type === "case" ? unitsPerCase : undefined;
+      item.category = category;
+      item.location = location;
+      item.brand = brand;
+      item.size = size;
+      item.unit = unit;
+      item.par = par;
+      item.qty = qty;
+      item.reorder = reorder;
+      item.cost = cost;
+      item.supplier = supplier;
+      item.serving = serving;
+      item.sugarFree = sugarFree;
+      item.notes = notes;
+      inventory[upc] = item;
+      setStatus(modalStatus, "Item updated.", "ok");
+    }
+    
+    // Add custom category to dropdown if it doesn't exist
+    const standardCategories = ["Syrup", "Milk", "Topping", "Cup", "Other"];
+    if (category && !standardCategories.includes(category)) {
+      const existingOption = Array.from(modalCategory.options).find(opt => opt.value === category);
+      if (!existingOption) {
+        const newOption = document.createElement("option");
+        newOption.value = category;
+        newOption.textContent = category;
+        // Insert before "Other"
+        const otherOption = Array.from(modalCategory.options).find(opt => opt.value === "Other");
+        if (otherOption) {
+          modalCategory.insertBefore(newOption, otherOption);
+        } else {
+          modalCategory.appendChild(newOption);
+        }
+      }
+    }
+
+    saveInventoryToStorage();
+    renderReceiveList();
+    renderInventoryTable();
+    updateSummaryLine();
+    setTimeout(closeItemModal, 200);
+  });
+
+  modalDeleteBtn.addEventListener("click", () => {
+    if (!modalUpcCurrent) return;
+    if (!confirm("Remove this item from inventory? This only affects this device.")) return;
+    delete inventory[modalUpcCurrent];
+    saveInventoryToStorage();
+    renderInventoryTable();
+    updateSummaryLine();
+    closeItemModal();
+  });
+
+  /***************
+   * EXPORT / PRINT (PDF)
+   ***************/
+  btnExport.addEventListener("click", () => {
+    const rows = inventoryArray().sort((a, b) => {
+      const ca = (a.category || "Other").localeCompare(b.category || "Other");
+      if (ca !== 0) return ca;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+    const now = new Date();
+    const dateStr = now.toLocaleString();
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      alert("Popup blocked. Allow popups for this site to export/print.");
+      return;
+    }
+
+    win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Brewtopia Inventory Export</title>");
+    win.document.write("<style>");
+    win.document.write(`
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; color: #111827; }
+      h1 { margin: 0 0 4px; }
+      .muted { color: #6b7280; font-size: 13px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+      th, td { border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; }
+      th { background: #f3f4f6; font-size: 12px; }
+      tr:nth-child(even) td { background: #f9fafb; }
+    `);
+    win.document.write("</style></head><body>");
+    win.document.write("<h1>Brewtopia Inventory</h1>");
+    win.document.write(`<div class="muted">Exported ${dateStr}</div>`);
+    win.document.write("<table><thead><tr>");
+    win.document.write("<th>Category</th><th>Item</th><th>Type</th><th>Unit UPC</th><th>Units/Case</th><th>Brand</th><th>Location</th><th>UPC</th><th>Size</th><th>Unit</th><th>Qty</th><th>Par</th><th>Reorder</th><th>Cost</th><th>Supplier</th><th>Serving</th><th>Notes</th>");
+    win.document.write("</tr></thead><tbody>");
+
+    if (!rows.length) {
+      win.document.write("<tr><td colspan='17'>No items in inventory.</td></tr>");
+    } else {
+      rows.forEach(item => {
+        win.document.write("<tr>");
+        win.document.write(`<td>${item.category || ""}</td>`);
+        win.document.write(`<td>${item.name || ""}</td>`);
+        win.document.write(`<td>${item.type || "unit"}</td>`);
+        win.document.write(`<td>${item.unitUpc || ""}</td>`);
+        win.document.write(`<td>${item.unitsPerCase || ""}</td>`);
+        win.document.write(`<td>${item.brand || ""}</td>`);
+        win.document.write(`<td>${item.location || "Office Stock"}</td>`);
+        win.document.write(`<td>${item.upc || ""}</td>`);
+        win.document.write(`<td>${item.size || ""}</td>`);
+        win.document.write(`<td>${item.unit || ""}</td>`);
+        win.document.write(`<td>${item.qty != null ? item.qty : ""}</td>`);
+        win.document.write(`<td>${item.par != null ? item.par : ""}</td>`);
+        win.document.write(`<td>${item.reorder != null ? item.reorder : ""}</td>`);
+        win.document.write(`<td>${item.cost != null ? "$" + Number(item.cost).toFixed(2) : ""}</td>`);
+        win.document.write(`<td>${item.supplier || ""}</td>`);
+        win.document.write(`<td>${item.serving || ""}</td>`);
+        win.document.write(`<td>${item.notes || ""}</td>`);
+        win.document.write("</tr>");
+      });
+    }
+
+    win.document.write("</tbody></table>");
+    win.document.write("</body></html>");
+    win.document.close();
+
+    win.focus();
+    win.print();
+  });
+
+  /***************
+   * EXPORT HTML (for Import)
+   ***************/
+  btnExportHtml.addEventListener("click", () => {
+    const rows = inventoryArray().sort((a, b) => {
+      const ca = (a.category || "Other").localeCompare(b.category || "Other");
+      if (ca !== 0) return ca;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+    const now = new Date();
+    const dateStr = now.toLocaleString();
+    const fileDate = now.toISOString().slice(0,10);
+
+    let html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Brewtopia Inventory Export</title>
+<style>
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; color: #111827; }
+  h1 { margin: 0 0 4px; }
+  .muted { color: #6b7280; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; }
+  th { background: #f3f4f6; font-size: 12px; }
+  tr:nth-child(even) td { background: #f9fafb; }
+</style>
+</head><body>
+<h1>Brewtopia Inventory</h1>
+<div class="muted">Exported ${dateStr}</div>
+<table>
+<thead>
+<tr>
+  <th>Category</th>
+  <th>Item</th>
+  <th>Type</th>
+  <th>Unit UPC</th>
+  <th>Units/Case</th>
+  <th>Brand</th>
+  <th>Location</th>
+  <th>UPC</th>
+  <th>Size</th>
+  <th>Unit</th>
+  <th>Qty</th>
+  <th>Par</th>
+  <th>Reorder</th>
+  <th>Cost</th>
+  <th>Supplier</th>
+  <th>Serving</th>
+  <th>Notes</th>
+</tr>
+</thead>
+<tbody>
+`;
+
+    if (!rows.length) {
+      html += `<tr><td colspan="17">No items in inventory.</td></tr>`;
+    } else {
+      rows.forEach(item => {
+        html += `<tr>
+  <td>${item.category || ""}</td>
+  <td>${item.name || ""}</td>
+  <td>${item.type || "unit"}</td>
+  <td>${item.unitUpc || ""}</td>
+  <td>${item.unitsPerCase || ""}</td>
+  <td>${item.brand || ""}</td>
+  <td>${item.location || "Office Stock"}</td>
+  <td>${item.upc || ""}</td>
+  <td>${item.size || ""}</td>
+  <td>${item.unit || ""}</td>
+  <td>${item.qty != null ? item.qty : ""}</td>
+  <td>${item.par != null ? item.par : ""}</td>
+  <td>${item.reorder != null ? item.reorder : ""}</td>
+  <td>${item.cost != null ? "$" + Number(item.cost).toFixed(2) : ""}</td>
+  <td>${item.supplier || ""}</td>
+  <td>${item.serving || ""}</td>
+  <td>${item.notes || ""}</td>
+</tr>
+`;
+      });
+    }
+
+    html += `
+</tbody>
+</table>
+</body></html>`;
+
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `brewtopia-inventory-${fileDate}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  });
+
+  /***************
+   * IMPORT HTML
+   ***************/
+  btnImport.addEventListener("click", () => {
+    importFileInput.value = "";
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener("change", () => {
+    const file = importFileInput.files && importFileInput.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const html = e.target.result;
+        processImport(html);
+        setStatus(globalStatus, "Import successful. Inventory replaced from file.", "ok");
+        renderInventoryTable();
+        updateSummaryLine();
+      } catch (err) {
+        console.error("Import error:", err);
+        setStatus(globalStatus, "Import failed: " + (err.message || err), "error");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  function processImport(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const table = doc.querySelector("table");
+    if (!table) {
+      throw new Error("No table found in import file.");
+    }
+
+    const rows = table.querySelectorAll("tbody tr");
+    if (!rows.length) {
+      throw new Error("No data rows found in import file.");
+    }
+
+    const newInv = {};
+    let importedCount = 0;
+
+    rows.forEach(tr => {
+      const tds = tr.querySelectorAll("td");
+      if (tds.length < 8) return;
+
+      const cat  = tds[0].textContent.trim();
+      const name = tds[1].textContent.trim();
+      
+      // Check for new format with type, unitUpc, unitsPerCase (17 columns)
+      let type = "unit", unitUpc = "", unitsPerCase = 0;
+      let brand = "", location = "Office Stock", upc = "", size = "", unit = "";
+      let qty = 0, par = 0, reorder = 0, cost = 0, supplier = "", serving = "", notes = "";
+      
+      if (tds.length >= 17) {
+        // New format with case UPC support
+        type = tds[2].textContent.trim() || "unit";
+        unitUpc = tds[3].textContent.trim();
+        unitsPerCase = parseInt(tds[4].textContent.trim() || "0", 10);
+        brand = tds[5].textContent.trim();
+        location = tds[6].textContent.trim() || "Office Stock";
+        upc = tds[7].textContent.trim();
+        size = tds[8].textContent.trim();
+        unit = tds[9].textContent.trim();
+        qty = parseInt((tds[10].textContent || "").trim() || "0", 10);
+        par = parseInt((tds[11].textContent || "").trim() || "0", 10);
+        reorder = parseInt((tds[12].textContent || "").trim() || "0", 10);
+        const costText = (tds[13].textContent || "").trim().replace("$", "");
+        cost = parseFloat(costText) || 0;
+        supplier = tds[14].textContent.trim();
+        serving = tds[15].textContent.trim();
+        notes = tds[16].textContent.trim();
+      } else if (tds.length >= 14) {
+        // Old format with location and all fields but no case support
+        brand = tds[2].textContent.trim();
+        location = tds[3].textContent.trim() || "Office Stock";
+        upc = tds[4].textContent.trim();
+        size = tds[5].textContent.trim();
+        unit = tds[6].textContent.trim();
+        qty = parseInt((tds[7].textContent || "").trim() || "0", 10);
+        par = parseInt((tds[8].textContent || "").trim() || "0", 10);
+        reorder = parseInt((tds[9].textContent || "").trim() || "0", 10);
+        const costText = (tds[10].textContent || "").trim().replace("$", "");
+        cost = parseFloat(costText) || 0;
+        supplier = tds[11].textContent.trim();
+        serving = tds[12].textContent.trim();
+        notes = tds[13].textContent.trim();
+      } else if (tds.length >= 13) {
+        // Old format with all fields but no location
+        brand = tds[2].textContent.trim();
+        upc = tds[3].textContent.trim();
+        size = tds[4].textContent.trim();
+        unit = tds[5].textContent.trim();
+        qty = parseInt((tds[6].textContent || "").trim() || "0", 10);
+        par = parseInt((tds[7].textContent || "").trim() || "0", 10);
+        reorder = parseInt((tds[8].textContent || "").trim() || "0", 10);
+        const costText = (tds[9].textContent || "").trim().replace("$", "");
+        cost = parseFloat(costText) || 0;
+        supplier = tds[10].textContent.trim();
+        serving = tds[11].textContent.trim();
+        notes = tds[12].textContent.trim();
+      } else {
+        // Oldest format with just basic fields
+        brand = tds.length > 12 ? tds[2].textContent.trim() : "";
+        location = tds.length >= 14 ? tds[3].textContent.trim() : "Office Stock";
+        const upcIdx = tds.length >= 14 ? 4 : (tds.length > 12 ? 3 : 2);
+        upc = tds[upcIdx].textContent.trim();
+        size = tds[upcIdx + 1].textContent.trim();
+        unit = tds[upcIdx + 2].textContent.trim();
+        qty = parseInt((tds[upcIdx + 3].textContent || "").trim() || "0", 10);
+        par = parseInt((tds[upcIdx + 4].textContent || "").trim() || "0", 10);
+        notes = tds[7].textContent.trim();
+      }
+
+      if (!upc) return;
+      newInv[upc] = {
+        upc,
+        name,
+        type,
+        unitUpc: type === "case" ? unitUpc : undefined,
+        unitsPerCase: type === "case" ? unitsPerCase : undefined,
+        brand,
+        location,
+        category: cat || "Other",
+        size,
+        unit,
+        qty: isNaN(qty) ? 0 : qty,
+        par: isNaN(par) ? 0 : par,
+        reorder: isNaN(reorder) ? 0 : reorder,
+        cost: isNaN(cost) ? 0 : cost,
+        supplier,
+        serving,
+        notes
+      };
+      importedCount++;
+    });
+
+    if (!importedCount) {
+      throw new Error("No valid rows found in import file.");
+    }
+
+    inventory = newInv;
+    saveInventoryToStorage();
+  }
+
+  /***************
+   * GOOGLE SHEETS MODAL & BUTTONS
+   ***************/
+  btnSheetsConfig.addEventListener("click", () => {
+    sheetsScriptUrl.value = sheetsConfig.scriptUrl || "";
+    setStatus(sheetsConfigStatus, "", null);
+    sheetsModalBackdrop.classList.remove("hidden");
+  });
+
+  sheetsModalCloseBtn.addEventListener("click", () => {
+    sheetsModalBackdrop.classList.add("hidden");
+  });
+
+  sheetsConfigCancelBtn.addEventListener("click", () => {
+    sheetsModalBackdrop.classList.add("hidden");
+  });
+
+  sheetsConfigSaveBtn.addEventListener("click", () => {
+    const scriptUrl = sheetsScriptUrl.value.trim();
+
+    if (!scriptUrl) {
+      setStatus(sheetsConfigStatus, "Please enter the Apps Script Web App URL", "error");
+      return;
+    }
+
+    if (!scriptUrl.includes("script.google.com")) {
+      setStatus(sheetsConfigStatus, "URL should be from script.google.com", "error");
+      return;
+    }
+
+    sheetsConfig.scriptUrl = scriptUrl;
+    saveSheetsConfig();
+    
+    setStatus(sheetsConfigStatus, "✅ Configuration saved", "ok");
+    setTimeout(() => {
+      sheetsModalBackdrop.classList.add("hidden");
+    }, 1000);
+  });
+
+  sheetsClearBtn.addEventListener("click", () => {
+    const confirmed = confirm("Clear Google Sheets configuration?");
+    if (confirmed) {
+      sheetsConfig = { scriptUrl: "" };
+      localStorage.removeItem(SHEETS_CONFIG_KEY);
+      sheetsScriptUrl.value = "";
+      setStatus(sheetsConfigStatus, "Configuration cleared", "ok");
+    }
+  });
+
+  btnPushToSheets.addEventListener("click", pushToGoogleSheets);
+  btnPullFromSheets.addEventListener("click", pullFromGoogleSheets);
+
+  /***************
+   * MOVE ITEM
+   ***************/
+  function lookupItemForMove(upc) {
+    if (!upc) return;
+    upc = upc.trim();
+    const item = inventory[upc];
+    if (!item) {
+      setStatus(moveStatus, "UPC not found. Scan it in Receive Stock first.", "error");
+      moveItemInfo.classList.add("hidden");
+      return;
+    }
+
+    // Check if this is a case UPC
+    if (item.type === "case") {
+      const unitUpc = item.unitUpc;
+      const unitsPerCase = item.unitsPerCase || 1;
+      
+      const unitItem = inventory[unitUpc];
+      if (!unitItem) {
+        setStatus(moveStatus, `⚠️ Unit UPC ${unitUpc} not found.`, "error");
+        moveItemInfo.classList.add("hidden");
+        return;
+      }
+
+      if (unitItem.qty < unitsPerCase) {
+        setStatus(moveStatus, `⚠️ Insufficient stock. Need ${unitsPerCase} units but only ${unitItem.qty} available.`, "error");
+        moveItemInfo.classList.add("hidden");
+        return;
+      }
+
+      // Use unit UPC for the actual move
+      currentMoveUpc = unitUpc;
+      moveItemName.textContent = `${item.name} [Case = ${unitsPerCase} units of ${unitItem.name}]`;
+      moveItemLocation.innerHTML = `<strong>Current Location:</strong> ${unitItem.location || "Office Stock"} • <strong>Qty:</strong> ${unitItem.qty} units`;
+      moveToLocation.value = "";
+      moveQuantity.value = String(unitsPerCase); // Default to moving a full case
+      moveQuantity.max = unitItem.qty;
+      moveQuantity.step = unitsPerCase; // Suggest increments of case size
+      moveItemInfo.classList.remove("hidden");
+      setStatus(moveStatus, `✅ Case UPC found. Moving ${unitsPerCase} units per case.`, "ok");
+      return;
+    }
+
+    // Regular unit item
+    if (item.qty <= 0) {
+      setStatus(moveStatus, "This item has no stock to move.", "error");
+      moveItemInfo.classList.add("hidden");
+      return;
+    }
+
+    currentMoveUpc = upc;
+    moveItemName.textContent = `${item.name || "(unnamed item)"} (${item.size || ""} ${item.unit || ""})`;
+    moveItemLocation.innerHTML = `<strong>Current Location:</strong> ${item.location || "Office Stock"} • <strong>Qty:</strong> ${item.qty}`;
+    moveToLocation.value = "";
+    moveQuantity.value = "1";
+    moveQuantity.max = item.qty;
+    moveQuantity.step = "1";
+    moveItemInfo.classList.remove("hidden");
+    setStatus(moveStatus, "✅ Item found. Select destination and quantity.", "ok");
+  }
+
+  moveLookupBtn.addEventListener("click", () => {
+    const upc = moveManualUpc.value;
+    lookupItemForMove(upc);
+    moveManualUpc.value = "";
+    moveManualUpc.focus();
+  });
+
+  const moveClearBtn = $("moveClearBtn");
+  moveClearBtn.addEventListener("click", () => {
+    moveManualUpc.value = "";
+    moveManualUpc.focus();
+  });
+
+  moveExecuteBtn.addEventListener("click", () => {
+    if (!currentMoveUpc) {
+      setStatus(moveStatus, "No item selected.", "error");
+      return;
+    }
+
+    const item = inventory[currentMoveUpc];
+    if (!item) {
+      setStatus(moveStatus, "Item not found.", "error");
+      return;
+    }
+
+    const toLocation = moveToLocation.value;
+    if (!toLocation) {
+      setStatus(moveStatus, "Please select a destination location.", "error");
+      return;
+    }
+
+    const currentLocation = item.location || "Office Stock";
+    if (toLocation === currentLocation) {
+      setStatus(moveStatus, "Destination is the same as current location.", "error");
+      return;
+    }
+
+    const qty = parseInt(moveQuantity.value);
+    if (!qty || qty < 1) {
+      setStatus(moveStatus, "Please enter a valid quantity.", "error");
+      return;
+    }
+
+    if (qty > item.qty) {
+      setStatus(moveStatus, `Cannot move ${qty} items. Only ${item.qty} available.`, "error");
+      return;
+    }
+
+    // Simply update the location and track the move
+    const oldLocation = item.location || "Office Stock";
+    item.location = toLocation;
+    item.last_moved = new Date().toISOString();
+    
+    if (!item.move_history) item.move_history = [];
+    item.move_history.push({
+      from: oldLocation,
+      to: toLocation,
+      qty: qty,
+      timestamp: new Date().toISOString()
+    });
+    
+    saveInventoryToStorage();
+    renderInventoryTable();
+    updateSummaryLine();
+    
+    setStatus(moveStatus, `✅ Moved ${qty} unit(s) of ${item.name} from ${oldLocation} to ${toLocation}.`, "ok");
+    moveItemInfo.classList.add("hidden");
+    currentMoveUpc = null;
+  });
+
+  /***************
+   * USB BARCODE SCANNERS (Keyboard Wedge)
+   ***************/
+  let usbBuffer = "";
+  let usbTimer = null;
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const code = usbBuffer.trim();
+      usbBuffer = "";
+
+      if (code.length >= 6) {
+        playBeep();
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        let normalized = code;
+        if (normalized.length === 13 && normalized.startsWith("0")) {
+          normalized = normalized.substring(1);
+        }
+
+        if (!receiveCard.classList.contains("hidden")) {
+          addReceiveScan(normalized);
+        } else if (!useCard.classList.contains("hidden")) {
+          useOne(normalized);
+        } else if (!moveCard.classList.contains("hidden")) {
+          lookupItemForMove(normalized);
+        }
+      }
+      return;
+    }
+
+    if (e.key.length === 1 && /\d/.test(e.key)) {
+      usbBuffer += e.key;
+      clearTimeout(usbTimer);
+      usbTimer = setTimeout(() => (usbBuffer = ""), 1000);
+    }
+  });
+
+  /***************
+   * SAFETY / CLEANUP
+   ***************/
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopScanner();
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    stopScanner();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeItemModal();
+    }
+  });
+</script>
+</body>
+</html>
